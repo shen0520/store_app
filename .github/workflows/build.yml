@@ -36,6 +36,14 @@ jobs:
       - name: Configure Flutter Android SDK
         run: flutter config --android-sdk $ANDROID_SDK_ROOT
 
+      - name: Set Android SDK path for Gradle
+        run: |
+          if [ -f android/local.properties ]; then
+            sed -i '/^sdk.dir=/d' android/local.properties
+          fi
+          echo "sdk.dir=$ANDROID_SDK_ROOT" >> android/local.properties
+          cat android/local.properties
+
       - name: Get dependencies
         run: flutter pub get
 
