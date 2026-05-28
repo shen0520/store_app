@@ -11,6 +11,13 @@ class ScanPage extends StatefulWidget {
 
 class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin {
   late AnimationController _lineController;
+  final MobileScannerController _controller = MobileScannerController(
+    formats: const [
+      BarcodeFormat.ean13,
+      BarcodeFormat.ean8,
+      BarcodeFormat.code128,
+    ],
+  );
   bool _isScanning = true;
 
   @override
@@ -28,6 +35,7 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
       final value = barcode.rawValue;
       if (value != null && value.isNotEmpty) {
         setState(() => _isScanning = false);
+        _controller.stop();
         Navigator.pop(context, value);
         return;
       }
@@ -36,6 +44,7 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
 
   @override
   void dispose() {
+    _controller.dispose();
     _lineController.dispose();
     super.dispose();
   }
@@ -49,11 +58,7 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
       body: Stack(
         children: [
           MobileScanner(
-            formats: const [
-              BarcodeFormat.ean13,
-              BarcodeFormat.ean8,
-              BarcodeFormat.code128,
-            ],
+            controller: _controller,
             onDetect: _onDetect,
           ),
           _buildOverlay(scanAreaSize),
