@@ -26,6 +26,11 @@ jobs:
           flutter-version: '3.19.0'
           channel: 'stable'
 
+      - name: Install Android SDK 36
+        run: |
+          yes | sdkmanager --licenses || true
+          sdkmanager "platforms;android-36"
+
       - run: flutter pub get
 
       - run: flutter build apk --release
