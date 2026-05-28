@@ -15,6 +15,13 @@ pluginManagement {
         gradlePluginPortal()
     }
 
+    resolutionStrategy {
+        eachPlugin {
+            if (requested.id.id == "org.jetbrains.kotlin.android") {
+                useVersion("1.8.22")
+            }
+        }
+    }
 }
 
 plugins {
