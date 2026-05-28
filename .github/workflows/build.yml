@@ -25,40 +25,11 @@ jobs:
           flutter-version: '3.24.0'
           channel: 'stable'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Set Android SDK environment
-        run: |
-          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
-          echo "ANDROID_HOME=$ANDROID_SDK_ROOT"
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
-
-      - name: Install Android SDK 36
-        run: |
-          yes | sdkmanager --licenses || true
-          sdkmanager "platforms;android-36" "build-tools;36.0.0"
-
-      - name: Configure Flutter Android SDK
-        run: flutter config --android-sdk $ANDROID_SDK_ROOT
-
-      - name: Set Android SDK path for Gradle
-        run: |
-          if [ -f android/local.properties ]; then
-            sed -i '/^sdk.dir=/d' android/local.properties
-          fi
-          echo "sdk.dir=$ANDROID_SDK_ROOT" >> android/local.properties
-          cat android/local.properties
-
       - name: Get dependencies
         run: flutter pub get
 
       - name: Build release APK
         run: flutter build apk --release
-        env:
-          ANDROID_HOME: /home/runner/android-sdk
-          ANDROID_SDK_ROOT: /home/runner/android-sdk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

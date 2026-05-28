@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:barcode_scan2/barcode_scan2.dart';
+import 'scan_page.dart';
 import '../database/db_helper.dart';
 import '../models/goods.dart';
 import '../utils/app_colors.dart';
@@ -33,34 +33,18 @@ class _ScanPricePageState extends State<ScanPricePage> {
       _notFound = false;
     });
 
-    try {
-      final result = await BarcodeScanner.scan(
-        options: const ScanOptions(
-          strings: {
-            'cancel': '取消',
-            'flash_on': '手电筒',
-            'flash_off': '关闭手电筒',
-          },
-          restrictFormat: [
-            BarcodeFormat.ean13,
-            BarcodeFormat.ean8,
-            BarcodeFormat.code128,
-          ],
-          useCamera: -1,
-          autoEnableFlash: false,
-        ),
-      );
+    final result = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(builder: (_) => const ScanPage()),
+    );
 
-      if (result.rawContent.isNotEmpty) {
-        _lastBarcode = result.rawContent;
-        await _lookupPrice(result.rawContent);
-      }
-    } catch (e) {
-      // User cancelled or error
-    } finally {
-      if (mounted) {
-        setState(() => _isScanning = false);
-      }
+    if (result != null && result.isNotEmpty) {
+      _lastBarcode = result;
+      await _lookupPrice(result);
+    }
+
+    if (mounted) {
+      setState(() => _isScanning = false);
     }
   }
 

@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:barcode_scan2/barcode_scan2.dart';
+import 'scan_page.dart';
 import 'package:image_picker/image_picker.dart';
 import '../database/db_helper.dart';
 import '../models/goods.dart';
@@ -62,26 +62,14 @@ class _AddGoodsPageState extends State<AddGoodsPage> {
   }
 
   Future<void> _scanBarcode() async {
-    try {
-      final result = await BarcodeScanner.scan(
-        options: const ScanOptions(
-          strings: {
-            'cancel': '取消',
-            'flash_on': '手电筒',
-            'flash_off': '关闭手电筒',
-          },
-          restrictFormat: [BarcodeFormat.ean13, BarcodeFormat.ean8, BarcodeFormat.code128],
-          useCamera: -1,
-          autoEnableFlash: false,
-        ),
-      );
+    final result = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(builder: (_) => const ScanPage()),
+    );
 
-      if (result.rawContent.isNotEmpty) {
-        setState(() => _barcode = result.rawContent);
-        _checkExistingAndQuery();
-      }
-    } catch (e) {
-      _showError('扫码失败: $e');
+    if (result != null && result.isNotEmpty) {
+      setState(() => _barcode = result);
+      _checkExistingAndQuery();
     }
   }
 
