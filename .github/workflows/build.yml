@@ -56,6 +56,9 @@ jobs:
 
       - name: Build release APK
         run: flutter build apk --release
+        env:
+          ANDROID_HOME: /home/runner/android-sdk
+          ANDROID_SDK_ROOT: /home/runner/android-sdk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
