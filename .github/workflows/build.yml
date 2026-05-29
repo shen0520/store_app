@@ -26,6 +26,20 @@ jobs:
           flutter-version: '3.24.0'
           channel: 'stable'
 
+      - name: Clean Gradle cache
+        run: |
+          rm -rf ~/.gradle/caches
+          rm -rf android/.gradle
+          rm -rf android/app/build
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK components
+        run: |
+          sdkmanager "platforms;android-35"
+          sdkmanager "build-tools;35.0.0"
+
       - name: Get dependencies
         run: flutter pub get
       - name: Get dependencies
