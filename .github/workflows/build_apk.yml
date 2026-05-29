@@ -27,6 +27,14 @@ jobs:
           channel: 'stable'
 
       - run: flutter pub get
+      - run: flutter pub get
+
+      - name: Clean Android SDK
+        run: rm -rf /usr/local/lib/android/sdk/platforms/android-35
+
+      - run: flutter build apk --release
+        env:
+          JAVA_HOME: ${{ env.JAVA_HOME }}
 
       - run: flutter build apk --release
         env:
