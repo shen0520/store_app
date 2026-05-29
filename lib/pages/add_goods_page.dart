@@ -6,6 +6,7 @@ import '../database/db_helper.dart';
 import '../models/goods.dart';
 import '../services/barcode_service.dart';
 import '../utils/app_colors.dart';
+import '../widgets/goods_image.dart';
 
 class AddGoodsPage extends StatefulWidget {
   final String? initialBarcode;
@@ -129,18 +130,23 @@ class _AddGoodsPageState extends State<AddGoodsPage> {
         });
       } else {
         setState(() => _isManualMode = true);
-        _showInfo('未查询到公开商品信息，请手动完善');
+        _showInfo('未查询到商品信息，请手动录入');
       }
     } catch (e) {
       setState(() => _isManualMode = true);
-      _showInfo('网络不可用，已进入手动录入模式');
+      _showInfo('条码查询服务暂不可用，请手动录入');
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
   Future<void> _pickImage() async {
-    final picked = await _picker.pickImage(source: ImageSource.gallery);
+    final picked = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 800,
+      maxHeight: 800,
+      imageQuality: 80,
+    );
     if (picked != null) {
       setState(() {
         _localImage = File(picked.path);
@@ -233,14 +239,13 @@ class _AddGoodsPageState extends State<AddGoodsPage> {
   }
 
   Widget _buildImagePreview() {
-    if (_localImage != null) {
-      return Image.file(_localImage!, fit: BoxFit.cover);
-    }
-    if (_imageUrl != null && _imageUrl!.isNotEmpty) {
-      return Image.network(
-        _imageUrl!,
+    final path = _localImage?.path ?? _imageUrl;
+    if (path != null && path.isNotEmpty) {
+      return GoodsImage(
+        imagePath: path,
+        width: double.infinity,
+        height: 180,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _buildPlaceholder(),
       );
     }
     return _buildPlaceholder();

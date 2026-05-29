@@ -3,6 +3,7 @@ import '../utils/app_colors.dart';
 import 'add_goods_page.dart';
 import 'scan_price_page.dart';
 import 'goods_list_page.dart';
+import 'data_manage_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -67,6 +68,16 @@ class HomePage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
+              _buildSecondaryButton(
+                context: context,
+                icon: Icons.sync_alt,
+                label: '数据导入/导出',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const DataManagePage()),
+                ),
+              ),
+              const SizedBox(height: 16),
               const Center(
                 child: Text(
                   '数据仅存储在本地，不上传云端',

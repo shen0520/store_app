@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../database/db_helper.dart';
 import '../models/goods.dart';
 import '../utils/app_colors.dart';
+import '../widgets/goods_image.dart';
 import 'add_goods_page.dart';
 
 class GoodsListPage extends StatefulWidget {
@@ -188,17 +189,13 @@ class _GoodsListPageState extends State<GoodsListPage> {
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: AppColors.border),
                   ),
-                  child: goods.goodsImg != null && goods.goodsImg!.isNotEmpty
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            goods.goodsImg!,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) =>
-                                const Icon(Icons.image, color: AppColors.textMuted),
-                          ),
-                        )
-                      : const Icon(Icons.image, color: AppColors.textMuted),
+                  child: GoodsImage(
+                    imagePath: goods.goodsImg,
+                    width: 64,
+                    height: 64,
+                    fit: BoxFit.cover,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(

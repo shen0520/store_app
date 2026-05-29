@@ -132,4 +132,85 @@ class DBHelper {
     await db.close();
     _database = null;
   }
+
+  /// 批量导入商品
+  /// [goodsList] 要导入的商品列表
+  /// [conflictStrategy] 冲突处理策略: 'skip'(跳过), 'overwrite'(覆盖), 'merge'(智能合并)
+  /// 返回 {inserted: 新增数, updated: 更新数, skipped: 跳过数}
+  Future<Map<String, int>> importGoods(
+    List<Goods> goodsList, {
+    String conflictStrategy = 'skip',
+  }) async {
+    final db = await database;
+    int inserted = 0;
+    int updated = 0;
+    int skipped = 0;
+
+    await db.transaction((txn) async {
+      for (final goods in goodsList) {
+        final existing = await txn.query(
+          'goods',
+          where: 'barcode = ?',
+          whereArgs: [goods.barcode],
+        );
+
+        if (existing.isEmpty) {
+          // 条码不存在，直接插入
+          await txn.insert('goods', goods.toMap());
+          inserted++;
+        } else {
+          // 条码已存在，根据策略处理
+          final existingId = existing.first['id'] as int;
+
+          switch (conflictStrategy) {
+            case 'skip':
+              skipped++;
+              break;
+            case 'overwrite':
+              await txn.update(
+                'goods',
+                goods.toMap(),
+                where: 'id = ?',
+                whereArgs: [existingId],
+              );
+              updated++;
+              break;
+            case 'merge':
+              // 智能合并：保留 update_time 较新的
+              final existingUpdateTime = DateTime.parse(
+                existing.first['update_time'] as String,
+              );
+              if (goods.updateTime.isAfter(existingUpdateTime)) {
+                await txn.update(
+                  'goods',
+                  goods.toMap(),
+                  where: 'id = ?',
+                  whereArgs: [existingId],
+                );
+                updated++;
+              } else {
+                skipped++;
+              }
+              break;
+            default:
+              skipped++;
+          }
+        }
+      }
+    });
+
+    return {'inserted': inserted, 'updated': updated, 'skipped': skipped};
+  }
+
+  /// 导出全部商品数据
+  Future<List<Map<String, dynamic>>> exportAllGoods() async {
+    final db = await database;
+    return await db.query('goods', orderBy: 'update_time DESC');
+  }
+
+  /// 清空数据库（导入前可选）
+  Future<void> clearAllGoods() async {
+    final db = await database;
+    await db.delete('goods');
+  }
 }

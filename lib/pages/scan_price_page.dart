@@ -3,6 +3,7 @@ import 'scan_page.dart';
 import '../database/db_helper.dart';
 import '../models/goods.dart';
 import '../utils/app_colors.dart';
+import '../widgets/goods_image.dart';
 import 'add_goods_page.dart';
 
 class ScanPricePage extends StatefulWidget {
@@ -155,16 +156,13 @@ class _ScanPricePageState extends State<ScanPricePage> {
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: AppColors.border),
             ),
-            child: goods.goodsImg != null && goods.goodsImg!.isNotEmpty
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      goods.goodsImg!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _buildImagePlaceholder(),
-                    ),
-                  )
-                : _buildImagePlaceholder(),
+            child: GoodsImage(
+              imagePath: goods.goodsImg,
+              width: 220,
+              height: 220,
+              fit: BoxFit.cover,
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
           const SizedBox(height: 32),
           // 商品名称
