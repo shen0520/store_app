@@ -82,8 +82,9 @@ class BarcodeService {
       final data = json.decode(response.body);
 
       if (data['code'] == 200 || data['status'] == 'ok') {
-        final result = data['data'] ?? data['result'] ?? data;
-        if (result != null && result is Map) {
+        final rawResult = data['data'] ?? data['result'] ?? data;
+        if (rawResult != null && rawResult is Map) {
+          final result = Map<String, dynamic>.from(rawResult);
           final info = BarcodeInfo(
             goodsName: _extractString(result, ['name', 'goodsName', 'title', 'productName']),
             brand: _extractString(result, ['brand', 'trademark', 'manufacturer']),

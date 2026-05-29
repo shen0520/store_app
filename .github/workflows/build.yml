@@ -39,20 +39,12 @@ jobs:
         run: |
           sdkmanager "platforms;android-35"
           sdkmanager "build-tools;35.0.0"
+          sdkmanager "ndk;25.1.8937393"
 
       - name: Get dependencies
         run: flutter pub get
-      - name: Get dependencies
-        run: flutter pub get
-
-      - name: Clean Android SDK
-        run: rm -rf /usr/local/lib/android/sdk/platforms/android-35
 
       - name: Build release APK
-        run: flutter build apk --release
-        
-      - name: Build release APK
-      
         run: flutter build apk --release
 
       - name: Upload APK

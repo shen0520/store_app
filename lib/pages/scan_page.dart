@@ -35,7 +35,6 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
       final value = barcode.rawValue;
       if (value != null && value.isNotEmpty) {
         setState(() => _isScanning = false);
-        _controller.stop();
         Navigator.pop(context, value);
         return;
       }

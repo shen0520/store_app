@@ -81,9 +81,9 @@ class ImportService {
       throw Exception('JSON 格式不正确，未找到商品数据');
     }
 
-    return goodsArray.map((item) {
+    return goodsArray.whereType<Map>().map((item) {
       // 兼容导出时的字段名和数据库字段名
-      final map = Map<String, dynamic>.from(item as Map);
+      final map = Map<String, dynamic>.from(item);
       _normalizeFieldNames(map);
       return Goods.fromMap(map);
     }).toList();
