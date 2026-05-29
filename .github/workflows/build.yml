@@ -1,3 +1,4 @@
+
 name: Build APK
 
 on:
@@ -27,8 +28,17 @@ jobs:
 
       - name: Get dependencies
         run: flutter pub get
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Clean Android SDK
+        run: rm -rf /usr/local/lib/android/sdk/platforms/android-35
 
       - name: Build release APK
+        run: flutter build apk --release
+        
+      - name: Build release APK
+      
         run: flutter build apk --release
 
       - name: Upload APK
