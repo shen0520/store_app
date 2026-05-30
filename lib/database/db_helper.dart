@@ -21,16 +21,20 @@ class DBHelper {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _createDB,
+      onUpgrade: _onUpgrade,
     );
   }
 
   Future<void> _createDB(Database db, int version) async {
+    // 开启 WAL 模式提升并发性能
+    await db.execute('PRAGMA journal_mode=WAL;');
+
     await db.execute('''
       CREATE TABLE goods (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        barcode VARCHAR(50) NOT NULL,
+        barcode VARCHAR(50) NOT NULL UNIQUE,
         goods_name VARCHAR(200) NOT NULL,
         brand VARCHAR(100),
         spec VARCHAR(100),
@@ -45,6 +49,69 @@ class DBHelper {
 
     await db.execute('''
       CREATE INDEX idx_barcode ON goods(barcode)
+    ''');
+
+    await _createScanHistoryTable(db);
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // 开启 WAL 模式
+      await db.execute('PRAGMA journal_mode=WAL;');
+
+      // 创建扫码历史表
+      await _createScanHistoryTable(db);
+
+      // 为 goods 表添加 barcode UNIQUE 约束（SQLite 不支持直接 ADD CONSTRAINT）
+      await db.transaction((txn) async {
+        // 创建新表（含 UNIQUE）
+        await txn.execute('''
+          CREATE TABLE goods_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            barcode VARCHAR(50) NOT NULL UNIQUE,
+            goods_name VARCHAR(200) NOT NULL,
+            brand VARCHAR(100),
+            spec VARCHAR(100),
+            goods_img VARCHAR(500),
+            purchase_price DECIMAL(10,2),
+            sell_price DECIMAL(10,2) NOT NULL,
+            remark VARCHAR(200),
+            create_time DATETIME NOT NULL,
+            update_time DATETIME NOT NULL
+          )
+        ''');
+
+        // 复制数据（重复 barcode 保留 update_time 最新的）
+        await txn.execute('''
+          INSERT OR REPLACE INTO goods_new
+          SELECT * FROM goods
+          ORDER BY update_time DESC
+        ''');
+
+        // 删除旧表
+        await txn.execute('DROP TABLE goods');
+
+        // 重命名
+        await txn.execute('ALTER TABLE goods_new RENAME TO goods');
+
+        // 重建索引
+        await txn.execute('CREATE INDEX idx_barcode ON goods(barcode)');
+      });
+    }
+  }
+
+  Future<void> _createScanHistoryTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS scan_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        barcode VARCHAR(50) NOT NULL,
+        goods_name VARCHAR(200),
+        sell_price DECIMAL(10,2),
+        scan_time DATETIME NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE INDEX idx_scan_time ON scan_history(scan_time DESC)
     ''');
   }
 
@@ -94,7 +161,11 @@ class DBHelper {
     return Goods.fromMap(results.first);
   }
 
-  Future<List<Goods>> getAllGoods({String? searchQuery}) async {
+  Future<List<Goods>> getAllGoods({
+    String? searchQuery,
+    int limit = 50,
+    int offset = 0,
+  }) async {
     final db = await database;
     if (searchQuery != null && searchQuery.isNotEmpty) {
       final results = await db.query(
@@ -102,12 +173,16 @@ class DBHelper {
         where: 'goods_name LIKE ? OR barcode LIKE ?',
         whereArgs: ['%$searchQuery%', '%$searchQuery%'],
         orderBy: 'update_time DESC',
+        limit: limit,
+        offset: offset,
       );
       return results.map((e) => Goods.fromMap(e)).toList();
     }
     final results = await db.query(
       'goods',
       orderBy: 'update_time DESC',
+      limit: limit,
+      offset: offset,
     );
     return results.map((e) => Goods.fromMap(e)).toList();
   }
@@ -212,5 +287,42 @@ class DBHelper {
   Future<void> clearAllGoods() async {
     final db = await database;
     await db.delete('goods');
+    await db.delete('scan_history');
+  }
+
+  // ==================== 扫码历史记录 ====================
+
+  /// 插入扫码记录
+  Future<int> insertScanHistory({
+    required String barcode,
+    String? goodsName,
+    double? sellPrice,
+  }) async {
+    final db = await database;
+    // 清理超过 50 条的旧记录
+    final countResult = await db.rawQuery('SELECT COUNT(*) as count FROM scan_history');
+    final count = (countResult.first['count'] as int);
+    if (count >= 50) {
+      await db.rawDelete(
+        'DELETE FROM scan_history WHERE id IN (SELECT id FROM scan_history ORDER BY scan_time ASC LIMIT ?)',
+        [count - 49],
+      );
+    }
+    return await db.insert('scan_history', {
+      'barcode': barcode,
+      'goods_name': goodsName,
+      'sell_price': sellPrice,
+      'scan_time': DateTime.now().toIso8601String(),
+    });
+  }
+
+  /// 获取最近扫码历史
+  Future<List<Map<String, dynamic>>> getScanHistory({int limit = 20}) async {
+    final db = await database;
+    return await db.query(
+      'scan_history',
+      orderBy: 'scan_time DESC',
+      limit: limit,
+    );
   }
 }

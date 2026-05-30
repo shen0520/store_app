@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'package:http/http.dart' as http;
+import 'barcode_cache.dart';
 
 class BarcodeInfo {
   final String? goodsName;
@@ -26,19 +27,28 @@ class BarcodeInfo {
 class BarcodeService {
   static const String _baichuanApi = 'https://api.baichuanhui.com/barcode/';
   static const String _backupApi = 'https://api.bitfu.cn/barcode/';
+  final BarcodeCache _cache = BarcodeCache();
 
   /// 查询条码信息
-  /// 依次调用两个API，返回第一个成功的结果
+  /// 先查本地缓存，未命中则依次调用两个API，返回第一个成功的结果
   Future<BarcodeInfo> queryBarcode(String barcode) async {
     developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', name: 'BarcodeService');
     developer.log('🔍 开始查询条码: $barcode', name: 'BarcodeService');
+
+    // 先查缓存
+    final cached = _cache.get(barcode);
+    if (cached != null) {
+      developer.log('💾 缓存命中: $cached', name: 'BarcodeService');
+      return cached;
+    }
 
     // 尝试主API
     developer.log('📡 尝试主API: $_baichuanApi$barcode', name: 'BarcodeService');
     try {
       final result = await _queryWithTimeout(_baichuanApi, barcode);
       if (result.found) {
-        developer.log('✅ 主API查询成功: $result', name: 'BarcodeService');
+        _cache.set(barcode, result);
+        developer.log('✅ 主API查询成功，已缓存: $result', name: 'BarcodeService');
         return result;
       }
       developer.log('⚠️ 主API返回未找到', name: 'BarcodeService');
@@ -51,7 +61,8 @@ class BarcodeService {
     try {
       final result = await _queryWithTimeout(_backupApi, barcode);
       if (result.found) {
-        developer.log('✅ 备用API查询成功: $result', name: 'BarcodeService');
+        _cache.set(barcode, result);
+        developer.log('✅ 备用API查询成功，已缓存: $result', name: 'BarcodeService');
         return result;
       }
       developer.log('⚠️ 备用API返回未找到', name: 'BarcodeService');

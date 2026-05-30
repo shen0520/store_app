@@ -46,19 +46,38 @@ class ImportService {
         return {'success': false, 'message': '文件中没有找到商品数据'};
       }
 
+      // 校验数据
+      final validationResult = _validateGoodsList(goodsList);
+      final validList = validationResult['valid'] as List<Goods>;
+      final invalidList = validationResult['invalid'] as List<Map<String, dynamic>>;
+
+      if (validList.isEmpty) {
+        return {
+          'success': false,
+          'message': '导入失败：所有数据均校验不通过\n\n共 ${invalidList.length} 条错误:\n${_formatInvalidList(invalidList)}',
+        };
+      }
+
       // 导入到数据库
       final db = DBHelper();
       final importResult = await db.importGoods(
-        goodsList,
+        validList,
         conflictStrategy: conflictStrategy,
       );
 
+      final message = StringBuffer();
+      message.writeln('导入完成');
+      message.writeln('新增: ${importResult['inserted']} 条');
+      message.writeln('更新: ${importResult['updated']} 条');
+      message.writeln('跳过: ${importResult['skipped']} 条');
+      if (invalidList.isNotEmpty) {
+        message.writeln('\n${invalidList.length} 条数据校验失败（已跳过）:');
+        message.write(_formatInvalidList(invalidList, maxLines: 5));
+      }
+
       return {
         'success': true,
-        'message': '导入完成\n'
-            '新增: ${importResult['inserted']} 条\n'
-            '更新: ${importResult['updated']} 条\n'
-            '跳过: ${importResult['skipped']} 条',
+        'message': message.toString(),
         'result': importResult,
       };
     } catch (e) {
@@ -154,6 +173,76 @@ class ImportService {
     if (!map.containsKey('update_time')) {
       map['update_time'] = DateTime.now().toIso8601String();
     }
+  }
+
+  // ==================== 数据校验 ====================
+
+  /// 校验商品列表，返回 {valid: [...], invalid: [...]}
+  Map<String, dynamic> _validateGoodsList(List<Goods> goodsList) {
+    final valid = <Goods>[];
+    final invalid = <Map<String, dynamic>>[];
+
+    for (int i = 0; i < goodsList.length; i++) {
+      final goods = goodsList[i];
+      final errors = <String>[];
+
+      // 条码校验：非空，只含数字
+      if (goods.barcode.trim().isEmpty) {
+        errors.add('条码不能为空');
+      } else if (!RegExp(r'^[0-9]+$').hasMatch(goods.barcode.trim())) {
+        errors.add('条码只能包含数字');
+      } else {
+        final len = goods.barcode.trim().length;
+        if (len != 8 && len != 12 && len != 13 && len != 14) {
+          errors.add('条码长度应为 8/12/13/14 位');
+        }
+      }
+
+      // 商品名称校验
+      if (goods.goodsName.trim().isEmpty) {
+        errors.add('商品名称不能为空');
+      } else if (goods.goodsName.trim().length > 200) {
+        errors.add('商品名称过长（最多200字符）');
+      }
+
+      // 售价校验
+      if (goods.sellPrice <= 0) {
+        errors.add('售价必须大于0');
+      }
+      if (goods.sellPrice > 999999) {
+        errors.add('售价超出合理范围');
+      }
+
+      // 进货价校验（如有）
+      if (goods.purchasePrice != null && goods.purchasePrice! < 0) {
+        errors.add('进货价不能为负数');
+      }
+
+      if (errors.isEmpty) {
+        valid.add(goods);
+      } else {
+        invalid.add({
+          'index': i + 1,
+          'barcode': goods.barcode,
+          'name': goods.goodsName,
+          'errors': errors,
+        });
+      }
+    }
+
+    return {'valid': valid, 'invalid': invalid};
+  }
+
+  String _formatInvalidList(List<Map<String, dynamic>> invalidList, {int maxLines = 100}) {
+    final buffer = StringBuffer();
+    for (int i = 0; i < invalidList.length && i < maxLines; i++) {
+      final item = invalidList[i];
+      buffer.writeln('第${item['index']}行 ${item['name']}(${item['barcode']}): ${(item['errors'] as List<String>).join(', ')}');
+    }
+    if (invalidList.length > maxLines) {
+      buffer.writeln('... 还有 ${invalidList.length - maxLines} 条');
+    }
+    return buffer.toString();
   }
 
   /// 解析 CSV 行（处理引号包裹的字段）

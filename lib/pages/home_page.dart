@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../utils/app_colors.dart';
+import '../providers/goods_provider.dart';
 import 'add_goods_page.dart';
 import 'scan_price_page.dart';
 import 'goods_list_page.dart';
@@ -78,14 +80,24 @@ class HomePage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              const Center(
-                child: Text(
-                  '数据仅存储在本地，不上传云端',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textMuted,
-                  ),
-                ),
+              Consumer<GoodsProvider>(
+                builder: (context, provider, child) {
+                  return FutureBuilder<int>(
+                    future: provider.getGoodsCount(),
+                    builder: (context, snapshot) {
+                      final count = snapshot.data ?? 0;
+                      return Center(
+                        child: Text(
+                          '已录入 $count 件商品 · 数据仅存储在本地',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
               ),
             ],
           ),

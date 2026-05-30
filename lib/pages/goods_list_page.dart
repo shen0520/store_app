@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import '../database/db_helper.dart';
+import 'package:provider/provider.dart';
+import '../providers/goods_provider.dart';
 import '../models/goods.dart';
 import '../utils/app_colors.dart';
 import '../widgets/goods_image.dart';
@@ -13,26 +15,32 @@ class GoodsListPage extends StatefulWidget {
 }
 
 class _GoodsListPageState extends State<GoodsListPage> {
-  final _db = DBHelper();
   final _searchCtrl = TextEditingController();
-  List<Goods> _goodsList = [];
-  bool _isLoading = true;
+  Timer? _debounceTimer;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    _loadGoods();
+    _scrollController.addListener(_onScroll);
+    // 页面打开后加载数据
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<GoodsProvider>().loadGoods();
+    });
   }
 
-  Future<void> _loadGoods() async {
-    setState(() => _isLoading = true);
-    final list = await _db.getAllGoods(searchQuery: _searchCtrl.text.isNotEmpty ? _searchCtrl.text : null);
-    if (mounted) {
-      setState(() {
-        _goodsList = list;
-        _isLoading = false;
-      });
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      context.read<GoodsProvider>().loadMore();
     }
+  }
+
+  void _onSearchChanged(String value) {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      context.read<GoodsProvider>().search(value);
+    });
   }
 
   Future<void> _deleteGoods(Goods goods) async {
@@ -55,8 +63,7 @@ class _GoodsListPageState extends State<GoodsListPage> {
     );
 
     if (confirm == true && goods.id != null) {
-      await _db.deleteGoods(goods.id!);
-      _loadGoods();
+      await context.read<GoodsProvider>().deleteGoods(goods.id!);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -65,6 +72,18 @@ class _GoodsListPageState extends State<GoodsListPage> {
           ),
         );
       }
+    }
+  }
+
+  Future<void> _editGoods(Goods goods) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AddGoodsPage(existingGoods: goods),
+      ),
+    );
+    if (result == true && mounted) {
+      await context.read<GoodsProvider>().loadGoods(refresh: true);
     }
   }
 
@@ -83,12 +102,19 @@ class _GoodsListPageState extends State<GoodsListPage> {
         children: [
           _buildSearchBar(),
           Expanded(
-            child: _isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(color: AppColors.primary))
-                : _goodsList.isEmpty
-                    ? _buildEmptyState()
-                    : _buildList(),
+            child: Consumer<GoodsProvider>(
+              builder: (context, provider, child) {
+                if (provider.isLoading && provider.goodsList.isEmpty) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  );
+                }
+                if (provider.goodsList.isEmpty) {
+                  return _buildEmptyState();
+                }
+                return _buildList(provider);
+              },
+            ),
           ),
         ],
       ),
@@ -107,7 +133,7 @@ class _GoodsListPageState extends State<GoodsListPage> {
       ),
       child: TextField(
         controller: _searchCtrl,
-        onChanged: (_) => _loadGoods(),
+        onChanged: _onSearchChanged,
         style: const TextStyle(color: AppColors.textPrimary),
         decoration: InputDecoration(
           hintText: '搜索商品名称或条码',
@@ -118,7 +144,7 @@ class _GoodsListPageState extends State<GoodsListPage> {
                   icon: const Icon(Icons.clear, color: AppColors.textMuted),
                   onPressed: () {
                     _searchCtrl.clear();
-                    _loadGoods();
+                    _onSearchChanged('');
                   },
                 )
               : null,
@@ -155,12 +181,21 @@ class _GoodsListPageState extends State<GoodsListPage> {
     );
   }
 
-  Widget _buildList() {
+  Widget _buildList(GoodsProvider provider) {
     return ListView.builder(
+      controller: _scrollController,
       padding: const EdgeInsets.all(12),
-      itemCount: _goodsList.length,
+      itemCount: provider.goodsList.length + (provider.hasMore || provider.isLoadingMore ? 1 : 0),
       itemBuilder: (context, index) {
-        final goods = _goodsList[index];
+        if (index >= provider.goodsList.length) {
+          return const Padding(
+            padding: EdgeInsets.all(16),
+            child: Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            ),
+          );
+        }
+        final goods = provider.goodsList[index];
         return _buildGoodsCard(goods);
       },
     );
@@ -180,7 +215,6 @@ class _GoodsListPageState extends State<GoodsListPage> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 商品图片缩略
                 Container(
                   width: 64,
                   height: 64,
@@ -261,21 +295,10 @@ class _GoodsListPageState extends State<GoodsListPage> {
                     ],
                   ),
                 ),
-                // 操作按钮
                 Row(
                   children: [
                     TextButton.icon(
-                      onPressed: () async {
-                        final result = await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => AddGoodsPage(existingGoods: goods),
-                          ),
-                        );
-                        if (result == true) {
-                          _loadGoods();
-                        }
-                      },
+                      onPressed: () => _editGoods(goods),
                       icon: const Icon(Icons.edit, size: 16, color: AppColors.accent),
                       label: const Text('编辑', style: TextStyle(color: AppColors.accent)),
                     ),
@@ -307,7 +330,9 @@ class _GoodsListPageState extends State<GoodsListPage> {
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     _searchCtrl.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 }

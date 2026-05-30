@@ -1,9 +1,12 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:provider/provider.dart';
 import 'scan_page.dart';
 import 'package:image_picker/image_picker.dart';
 import '../database/db_helper.dart';
 import '../models/goods.dart';
+import '../providers/goods_provider.dart';
 import '../services/barcode_service.dart';
 import '../utils/app_colors.dart';
 import '../widgets/goods_image.dart';
@@ -148,11 +151,24 @@ class _AddGoodsPageState extends State<AddGoodsPage> {
       imageQuality: 80,
     );
     if (picked != null) {
+      final savedFile = await _saveImageToAppDir(File(picked.path));
       setState(() {
-        _localImage = File(picked.path);
+        _localImage = savedFile;
         _imageUrl = null;
       });
     }
+  }
+
+  /// 将图片复制到应用私有目录，避免原图删除后失效
+  Future<File> _saveImageToAppDir(File sourceFile) async {
+    final appDir = await getApplicationDocumentsDirectory();
+    final imageDir = Directory('${appDir.path}/goods_images');
+    if (!await imageDir.exists()) {
+      await imageDir.create(recursive: true);
+    }
+    final fileName = 'goods_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final destPath = '${imageDir.path}/$fileName';
+    return await sourceFile.copy(destPath);
   }
 
   Future<void> _saveGoods() async {
@@ -197,10 +213,11 @@ class _AddGoodsPageState extends State<AddGoodsPage> {
     );
 
     try {
+      final provider = context.read<GoodsProvider>();
       if (_isEditing) {
-        await _db.updateGoods(goods);
+        await provider.updateGoods(goods);
       } else {
-        await _db.insertGoods(goods);
+        await provider.addGoods(goods);
       }
 
       if (mounted) {

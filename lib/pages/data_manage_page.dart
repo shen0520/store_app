@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../database/db_helper.dart';
+import 'package:provider/provider.dart';
+import '../providers/goods_provider.dart';
 import '../services/export_service.dart';
 import '../services/import_service.dart';
 import '../utils/app_colors.dart';
@@ -12,26 +13,11 @@ class DataManagePage extends StatefulWidget {
 }
 
 class _DataManagePageState extends State<DataManagePage> {
-  final _db = DBHelper();
   final _exportService = ExportService();
   final _importService = ImportService();
 
-  int _goodsCount = 0;
   bool _isLoading = false;
   String _conflictStrategy = 'skip'; // skip, overwrite, merge
-
-  @override
-  void initState() {
-    super.initState();
-    _loadGoodsCount();
-  }
-
-  Future<void> _loadGoodsCount() async {
-    final count = await _db.getGoodsCount();
-    if (mounted) {
-      setState(() => _goodsCount = count);
-    }
-  }
 
   Future<void> _exportData() async {
     setState(() => _isLoading = true);
@@ -42,7 +28,7 @@ class _DataManagePageState extends State<DataManagePage> {
           context: context,
           builder: (ctx) => AlertDialog(
             title: const Text('导出成功'),
-            content: Text('商品数据已导出，共 $_goodsCount 条\n\n文件路径:\n$filePath'),
+            content: Text('商品数据已导出\n\n文件路径:\n$filePath'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
@@ -135,20 +121,20 @@ class _DataManagePageState extends State<DataManagePage> {
         conflictStrategy: _conflictStrategy,
       );
 
+      if (result['success'] == true) {
+        // 导入成功后刷新 Provider
+        await context.read<GoodsProvider>().loadGoods(refresh: true);
+      }
+
       if (mounted) {
         showDialog(
           context: context,
           builder: (ctx) => AlertDialog(
-            title: Text(result['success'] ? '导入完成' : '导入失败'),
+            title: Text(result['success'] == true ? '导入完成' : '导入失败'),
             content: Text(result['message'] as String),
             actions: [
               TextButton(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  if (result['success'] == true) {
-                    _loadGoodsCount();
-                  }
-                },
+                onPressed: () => Navigator.pop(ctx),
                 child: const Text('确定', style: TextStyle(color: AppColors.primary)),
               ),
             ],
@@ -203,9 +189,8 @@ class _DataManagePageState extends State<DataManagePage> {
 
     setState(() => _isLoading = true);
     try {
-      await _db.clearAllGoods();
+      await context.read<GoodsProvider>().clearAllGoods();
       _showInfo('已清空全部数据');
-      _loadGoodsCount();
     } catch (e) {
       _showError('清空失败: $e');
     } finally {
@@ -242,11 +227,9 @@ class _DataManagePageState extends State<DataManagePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 数据统计卡片
                   _buildStatsCard(),
                   const SizedBox(height: 24),
 
-                  // 导出区域
                   _buildSectionTitle('数据导出'),
                   const SizedBox(height: 8),
                   _buildInfoText('将商品数据导出为文件，可分享给其他手机导入'),
@@ -264,7 +247,6 @@ class _DataManagePageState extends State<DataManagePage> {
                   ),
                   const SizedBox(height: 24),
 
-                  // 导入区域
                   _buildSectionTitle('数据导入'),
                   const SizedBox(height: 8),
                   _buildInfoText('从 JSON 或 CSV 文件导入商品数据'),
@@ -277,7 +259,6 @@ class _DataManagePageState extends State<DataManagePage> {
                   ),
                   const SizedBox(height: 24),
 
-                  // 危险操作区域
                   _buildSectionTitle('危险操作'),
                   const SizedBox(height: 8),
                   _buildInfoText('请谨慎操作，建议先导出备份'),
@@ -310,13 +291,23 @@ class _DataManagePageState extends State<DataManagePage> {
             style: TextStyle(color: Colors.white70, fontSize: 14),
           ),
           const SizedBox(height: 8),
-          Text(
-            '$_goodsCount',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 48,
-              fontWeight: FontWeight.bold,
-            ),
+          Consumer<GoodsProvider>(
+            builder: (context, provider, child) {
+              return FutureBuilder<int>(
+                future: provider.getGoodsCount(),
+                builder: (context, snapshot) {
+                  final count = snapshot.data ?? 0;
+                  return Text(
+                    '$count',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 48,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  );
+                },
+              );
+            },
           ),
           const Text(
             '条',

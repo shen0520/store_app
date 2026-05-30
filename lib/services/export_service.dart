@@ -8,6 +8,23 @@ import '../models/goods.dart';
 class ExportService {
   static const String _exportFileName = 'store_goods_export';
 
+  /// 获取导出目录，优先使用外部存储的 Download 目录
+  Future<Directory> _getExportDirectory() async {
+    // 尝试外部存储 Download 目录
+    if (Platform.isAndroid) {
+      final extDir = await getExternalStorageDirectory();
+      if (extDir != null) {
+        final downloadDir = Directory('${extDir.path}/Download');
+        if (!await downloadDir.exists()) {
+          await downloadDir.create(recursive: true);
+        }
+        return downloadDir;
+      }
+    }
+    // 回退到应用文档目录
+    return await getApplicationDocumentsDirectory();
+  }
+
   /// 导出全部商品为 JSON 文件
   /// 返回导出文件的路径
   Future<String> exportToJson() async {
@@ -25,8 +42,7 @@ class ExportService {
 
     final jsonStr = const JsonEncoder.withIndent('  ').convert(exportData);
 
-    // 保存到应用外部存储（Download 目录）
-    final dir = await getApplicationDocumentsDirectory();
+    final dir = await _getExportDirectory();
     final timeStr = _formatDateTime(DateTime.now());
     final filePath = '${dir.path}/${_exportFileName}_$timeStr.json';
     final file = File(filePath);
@@ -73,7 +89,7 @@ class ExportService {
       buffer.writeln(row.join(','));
     }
 
-    final dir = await getApplicationDocumentsDirectory();
+    final dir = await _getExportDirectory();
     final timeStr = _formatDateTime(DateTime.now());
     final filePath = '${dir.path}/${_exportFileName}_$timeStr.csv';
     final file = File(filePath);
