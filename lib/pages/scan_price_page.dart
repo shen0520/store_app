@@ -22,6 +22,7 @@ class _ScanPricePageState extends State<ScanPricePage> {
   bool _isScanning = false;
   bool _notFound = false;
   bool _continuousMode = false;
+  bool _ttsReady = false;
   String _lastBarcode = '';
 
   @override
@@ -32,15 +33,52 @@ class _ScanPricePageState extends State<ScanPricePage> {
   }
 
   Future<void> _initTts() async {
-    await _flutterTts.setLanguage('zh-CN');
+    await _flutterTts.awaitSpeakCompletion(true);
     await _flutterTts.setSpeechRate(0.5);
     await _flutterTts.setVolume(1.0);
     await _flutterTts.setPitch(1.0);
+
+    // 检查中文 TTS 引擎是否可用
+    var isAvailable = await _flutterTts.isLanguageAvailable('zh-CN');
+    if (!isAvailable) {
+      isAvailable = await _flutterTts.isLanguageAvailable('zh_CN');
+    }
+    if (!isAvailable) {
+      isAvailable = await _flutterTts.isLanguageAvailable('cmn');
+    }
+
+    if (isAvailable) {
+      await _flutterTts.setLanguage('zh-CN');
+      _ttsReady = true;
+    } else {
+      final languages = await _flutterTts.getLanguages;
+      final zhLang = languages.cast<String?>().firstWhere(
+        (l) =>
+            l != null &&
+            (l.startsWith('zh') || l.startsWith('cmn') || l.startsWith('ZH')),
+        orElse: () => null,
+      );
+      if (zhLang != null) {
+        await _flutterTts.setLanguage(zhLang);
+        _ttsReady = true;
+      }
+    }
   }
 
   Future<void> _speakPrice(Goods goods) async {
-    final text = '${goods.goodsName}，售价${goods.sellPrice.toStringAsFixed(0)}元';
-    await _flutterTts.speak(text);
+    if (!_ttsReady) {
+      debugPrint('TTS 未就绪，跳过播报');
+      return;
+    }
+    final priceText = goods.sellPrice == goods.sellPrice.toInt()
+        ? '${goods.sellPrice.toInt()}'
+        : '${goods.sellPrice}';
+    final text = '${goods.goodsName}，售价${priceText}元';
+    debugPrint('TTS 播报: $text');
+    final result = await _flutterTts.speak(text);
+    if (result != 1) {
+      debugPrint('TTS speak 失败，返回值: $result');
+    }
   }
 
   Future<void> _scanBarcode() async {

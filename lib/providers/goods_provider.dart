@@ -131,7 +131,8 @@ class GoodsProvider extends ChangeNotifier {
 
   @override
   void dispose() {
-    _db.close();
+    // 不关闭数据库连接，因为 DBHelper 是全局单例
+    // 其他页面（如扫码查价页）仍在使用同一个实例
     super.dispose();
   }
 }

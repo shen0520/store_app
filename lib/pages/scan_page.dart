@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../utils/app_colors.dart';
 
@@ -15,7 +16,11 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
     formats: const [
       BarcodeFormat.ean13,
       BarcodeFormat.ean8,
+      BarcodeFormat.upcA,
+      BarcodeFormat.upcE,
       BarcodeFormat.code128,
+      BarcodeFormat.code39,
+      BarcodeFormat.itf,
     ],
   );
   bool _isScanning = true;
@@ -30,11 +35,13 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
   }
 
   void _onDetect(BarcodeCapture capture) {
-    if (!_isScanning) return;
+    if (!_isScanning || !mounted) return;
     for (final barcode in capture.barcodes) {
       final value = barcode.rawValue;
       if (value != null && value.isNotEmpty) {
-        setState(() => _isScanning = false);
+        _isScanning = false;
+        _controller.stop();
+        HapticFeedback.lightImpact(); // 轻微震动反馈
         Navigator.pop(context, value);
         return;
       }
@@ -50,7 +57,13 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
 
   @override
   Widget build(BuildContext context) {
-    final scanAreaSize = MediaQuery.of(context).size.width * 0.75;
+    final size = MediaQuery.of(context).size;
+    final scanAreaSize = size.width * 0.75;
+    final scanWindow = Rect.fromCenter(
+      center: Offset(size.width / 2, size.height / 2),
+      width: scanAreaSize,
+      height: scanAreaSize,
+    );
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -59,6 +72,7 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
           MobileScanner(
             controller: _controller,
             onDetect: _onDetect,
+            scanWindow: scanWindow,
           ),
           _buildOverlay(scanAreaSize),
           _buildHeader(),
@@ -204,7 +218,7 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
         child: Column(
           children: [
             const Text(
-              '支持 EAN-13 / EAN-8 / CODE-128',
+              '支持 EAN-13 / UPC / CODE-128 / CODE-39 / ITF',
               style: TextStyle(color: Colors.white70, fontSize: 12),
             ),
             const SizedBox(height: 16),

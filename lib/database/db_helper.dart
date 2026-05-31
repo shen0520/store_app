@@ -79,10 +79,13 @@ class DBHelper {
       ''');
 
       // 复制数据（重复 barcode 保留 update_time 最新的）
+      // 子查询：每个 barcode 只取 update_time 最新的一条
       await db.execute('''
-        INSERT OR REPLACE INTO goods_new
-        SELECT * FROM goods
-        ORDER BY update_time DESC
+        INSERT INTO goods_new
+        SELECT * FROM goods g1
+        WHERE g1.update_time = (
+          SELECT MAX(g2.update_time) FROM goods g2 WHERE g2.barcode = g1.barcode
+        )
       ''');
 
       // 删除旧表

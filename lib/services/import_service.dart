@@ -122,7 +122,7 @@ class ImportService {
     for (final line in dataLines) {
       if (line.trim().isEmpty) continue;
       final fields = _parseCsvLine(line);
-      if (fields.length < 6) continue;
+      if (fields.length < 7) continue;
 
       final now = DateTime.now();
       goodsList.add(Goods(
@@ -130,9 +130,10 @@ class ImportService {
         goodsName: fields[1],
         brand: fields[2].isNotEmpty ? fields[2] : null,
         spec: fields[3].isNotEmpty ? fields[3] : null,
-        purchasePrice: fields[4].isNotEmpty ? double.tryParse(fields[4]) : null,
-        sellPrice: double.tryParse(fields[5]) ?? 0,
-        remark: fields.length > 6 && fields[6].isNotEmpty ? fields[6] : null,
+        goodsImg: fields[4].isNotEmpty ? fields[4] : null,
+        purchasePrice: fields[5].isNotEmpty ? double.tryParse(fields[5]) : null,
+        sellPrice: double.tryParse(fields[6]) ?? 0,
+        remark: fields.length > 7 && fields[7].isNotEmpty ? fields[7] : null,
         createTime: now,
         updateTime: now,
       ));

@@ -120,27 +120,33 @@ class _AddGoodsPageState extends State<AddGoodsPage> {
   }
 
   Future<void> _queryBarcode(String barcode) async {
-    setState(() => _isLoading = true);
-    try {
-      final info = await _barcodeService.queryBarcode(barcode);
-      if (info.found) {
-        setState(() {
-          _nameCtrl.text = info.goodsName ?? '';
-          _brandCtrl.text = info.brand ?? '';
-          _specCtrl.text = info.spec ?? '';
-          _imageUrl = info.imageUrl;
-          _isManualMode = false;
-        });
-      } else {
-        setState(() => _isManualMode = true);
-        _showInfo('未查询到商品信息，请手动录入');
-      }
-    } catch (e) {
-      setState(() => _isManualMode = true);
-      _showInfo('条码查询服务暂不可用，请手动录入');
-    } finally {
-      setState(() => _isLoading = false);
-    }
+    // API 查询已禁用：条码 API 不稳定，等待时间长，直接手动录入
+    setState(() {
+      _isManualMode = true;
+      _isLoading = false;
+    });
+    // 如需恢复 API 查询，取消下面注释：
+    // setState(() => _isLoading = true);
+    // try {
+    //   final info = await _barcodeService.queryBarcode(barcode);
+    //   if (info.found) {
+    //     setState(() {
+    //       _nameCtrl.text = info.goodsName ?? '';
+    //       _brandCtrl.text = info.brand ?? '';
+    //       _specCtrl.text = info.spec ?? '';
+    //       _imageUrl = info.imageUrl;
+    //       _isManualMode = false;
+    //     });
+    //   } else {
+    //     setState(() => _isManualMode = true);
+    //     _showInfo('未查询到商品信息，请手动录入');
+    //   }
+    // } catch (e) {
+    //   setState(() => _isManualMode = true);
+    //   _showInfo('条码查询服务暂不可用，请手动录入');
+    // } finally {
+    //   setState(() => _isLoading = false);
+    // }
   }
 
   Future<void> _pickImage() async {
