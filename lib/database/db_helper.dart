@@ -23,8 +23,8 @@ class DBHelper {
       path,
       version: 2,
       onConfigure: (db) async {
-        // WAL 模式必须在事务之外设置
-        await db.execute('PRAGMA journal_mode=WAL;');
+        // WAL 模式必须在事务之外设置，Android 上 PRAGMA 需用 rawQuery
+        await db.rawQuery('PRAGMA journal_mode=WAL;');
       },
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
