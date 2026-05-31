@@ -46,17 +46,34 @@ class Goods {
       id: map['id'] as int?,
       barcode: map['barcode'] as String,
       goodsName: map['goods_name'] as String,
-      brand: map['brand'] as String?,
-      spec: map['spec'] as String?,
-      goodsImg: map['goods_img'] as String?,
-      purchasePrice: map['purchase_price'] != null
-          ? (map['purchase_price'] as num).toDouble()
-          : null,
-      sellPrice: (map['sell_price'] as num).toDouble(),
-      remark: map['remark'] as String?,
+      brand: _toStr(map['brand']),
+      spec: _toStr(map['spec']),
+      goodsImg: _toStr(map['goods_img']),
+      purchasePrice: _toDouble(map['purchase_price']),
+      sellPrice: _toDouble(map['sell_price']) ?? 0,
+      remark: _toStr(map['remark']),
       createTime: DateTime.parse(map['create_time'] as String),
       updateTime: DateTime.parse(map['update_time'] as String),
     );
+  }
+
+  /// 安全转换为空字符串或 null
+  static String? _toStr(dynamic value) {
+    if (value == null) return null;
+    if (value is String && value.trim().isEmpty) return null;
+    return value.toString().trim();
+  }
+
+  /// 安全转换为 double，处理 null、空字符串、num 类型
+  static double? _toDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) {
+      if (value.trim().isEmpty) return null;
+      return double.tryParse(value.trim());
+    }
+    return null;
   }
 
   Goods copyWith({

@@ -22,15 +22,16 @@ class DBHelper {
     return await openDatabase(
       path,
       version: 2,
+      onConfigure: (db) async {
+        // WAL 模式必须在事务之外设置
+        await db.execute('PRAGMA journal_mode=WAL;');
+      },
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
     );
   }
 
   Future<void> _createDB(Database db, int version) async {
-    // 开启 WAL 模式提升并发性能
-    await db.execute('PRAGMA journal_mode=WAL;');
-
     await db.execute('''
       CREATE TABLE goods (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -56,47 +57,42 @@ class DBHelper {
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
-      // 开启 WAL 模式
-      await db.execute('PRAGMA journal_mode=WAL;');
-
       // 创建扫码历史表
       await _createScanHistoryTable(db);
 
       // 为 goods 表添加 barcode UNIQUE 约束（SQLite 不支持直接 ADD CONSTRAINT）
-      await db.transaction((txn) async {
-        // 创建新表（含 UNIQUE）
-        await txn.execute('''
-          CREATE TABLE goods_new (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            barcode VARCHAR(50) NOT NULL UNIQUE,
-            goods_name VARCHAR(200) NOT NULL,
-            brand VARCHAR(100),
-            spec VARCHAR(100),
-            goods_img VARCHAR(500),
-            purchase_price DECIMAL(10,2),
-            sell_price DECIMAL(10,2) NOT NULL,
-            remark VARCHAR(200),
-            create_time DATETIME NOT NULL,
-            update_time DATETIME NOT NULL
-          )
-        ''');
+      // 注意：onUpgrade 回调本身已在 sqflite 事务中，不可再嵌套 db.transaction()
+      await db.execute('''
+        CREATE TABLE goods_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          barcode VARCHAR(50) NOT NULL UNIQUE,
+          goods_name VARCHAR(200) NOT NULL,
+          brand VARCHAR(100),
+          spec VARCHAR(100),
+          goods_img VARCHAR(500),
+          purchase_price DECIMAL(10,2),
+          sell_price DECIMAL(10,2) NOT NULL,
+          remark VARCHAR(200),
+          create_time DATETIME NOT NULL,
+          update_time DATETIME NOT NULL
+        )
+      ''');
 
-        // 复制数据（重复 barcode 保留 update_time 最新的）
-        await txn.execute('''
-          INSERT OR REPLACE INTO goods_new
-          SELECT * FROM goods
-          ORDER BY update_time DESC
-        ''');
+      // 复制数据（重复 barcode 保留 update_time 最新的）
+      await db.execute('''
+        INSERT OR REPLACE INTO goods_new
+        SELECT * FROM goods
+        ORDER BY update_time DESC
+      ''');
 
-        // 删除旧表
-        await txn.execute('DROP TABLE goods');
+      // 删除旧表
+      await db.execute('DROP TABLE goods');
 
-        // 重命名
-        await txn.execute('ALTER TABLE goods_new RENAME TO goods');
+      // 重命名
+      await db.execute('ALTER TABLE goods_new RENAME TO goods');
 
-        // 重建索引
-        await txn.execute('CREATE INDEX idx_barcode ON goods(barcode)');
-      });
+      // 重建索引
+      await db.execute('CREATE INDEX idx_barcode ON goods(barcode)');
     }
   }
 
