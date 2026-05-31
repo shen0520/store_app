@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'scan_page.dart';
 import '../database/db_helper.dart';
 import '../models/goods.dart';
@@ -23,51 +24,103 @@ class _ScanPricePageState extends State<ScanPricePage> {
   bool _notFound = false;
   bool _continuousMode = false;
   bool _ttsReady = false;
+  bool _ttsEnabled = true; // 语音播报开关，默认开启
+  String _ttsStatus = '初始化中...';
   String _lastBarcode = '';
+
+  static const String _ttsPrefKey = 'tts_enabled';
 
   @override
   void initState() {
     super.initState();
+    _loadTtsPreference();
     _initTts();
     WidgetsBinding.instance.addPostFrameCallback((_) => _scanBarcode());
   }
 
-  Future<void> _initTts() async {
-    await _flutterTts.awaitSpeakCompletion(true);
-    await _flutterTts.setSpeechRate(0.5);
-    await _flutterTts.setVolume(1.0);
-    await _flutterTts.setPitch(1.0);
-
-    // 检查中文 TTS 引擎是否可用
-    var isAvailable = await _flutterTts.isLanguageAvailable('zh-CN');
-    if (!isAvailable) {
-      isAvailable = await _flutterTts.isLanguageAvailable('zh_CN');
-    }
-    if (!isAvailable) {
-      isAvailable = await _flutterTts.isLanguageAvailable('cmn');
-    }
-
-    if (isAvailable) {
-      await _flutterTts.setLanguage('zh-CN');
-      _ttsReady = true;
-    } else {
-      final languages = await _flutterTts.getLanguages;
-      final zhLang = languages.cast<String?>().firstWhere(
-        (l) =>
-            l != null &&
-            (l.startsWith('zh') || l.startsWith('cmn') || l.startsWith('ZH')),
-        orElse: () => null,
-      );
-      if (zhLang != null) {
-        await _flutterTts.setLanguage(zhLang);
-        _ttsReady = true;
+  Future<void> _loadTtsPreference() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getBool(_ttsPrefKey);
+      if (saved != null && mounted) {
+        setState(() => _ttsEnabled = saved);
       }
+    } catch (e) {
+      debugPrint('读取 TTS 偏好设置失败: $e');
+    }
+  }
+
+  Future<void> _toggleTts() async {
+    setState(() => _ttsEnabled = !_ttsEnabled);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_ttsPrefKey, _ttsEnabled);
+    } catch (e) {
+      debugPrint('保存 TTS 偏好设置失败: $e');
+    }
+  }
+
+  Future<void> _initTts() async {
+    try {
+      await _flutterTts.awaitSpeakCompletion(false);
+      await _flutterTts.setSpeechRate(0.5);
+      await _flutterTts.setVolume(1.0);
+      await _flutterTts.setPitch(1.0);
+
+      // 获取可用引擎列表
+      final engines = await _flutterTts.getEngines;
+      debugPrint('TTS 可用引擎: $engines');
+      if (engines == null || (engines as List).isEmpty) {
+        debugPrint('⚠️ 未检测到任何 TTS 引擎');
+        setState(() => _ttsStatus = '未检测到语音引擎');
+        return;
+      }
+
+      // 检查中文 TTS 引擎是否可用
+      var isAvailable = await _flutterTts.isLanguageAvailable('zh-CN');
+      if (!isAvailable) {
+        isAvailable = await _flutterTts.isLanguageAvailable('zh_CN');
+      }
+      if (!isAvailable) {
+        isAvailable = await _flutterTts.isLanguageAvailable('cmn');
+      }
+      debugPrint('TTS zh-CN 可用: $isAvailable');
+
+      if (isAvailable) {
+        await _flutterTts.setLanguage('zh-CN');
+        _ttsReady = true;
+        setState(() => _ttsStatus = '语音播报已开启');
+      } else {
+        final languages = await _flutterTts.getLanguages;
+        debugPrint('TTS 所有可用语言: $languages');
+        final zhLang = languages.cast<String?>().firstWhere(
+          (l) =>
+              l != null &&
+              (l.startsWith('zh') || l.startsWith('cmn') || l.startsWith('ZH')),
+          orElse: () => null,
+        );
+        if (zhLang != null) {
+          await _flutterTts.setLanguage(zhLang);
+          _ttsReady = true;
+          setState(() => _ttsStatus = '语音播报已开启');
+        } else {
+          setState(() => _ttsStatus = '无中文语音引擎');
+        }
+      }
+    } catch (e, st) {
+      debugPrint('TTS 初始化异常: $e');
+      debugPrint('$st');
+      setState(() => _ttsStatus = '语音初始化失败');
     }
   }
 
   Future<void> _speakPrice(Goods goods) async {
+    if (!_ttsEnabled) {
+      debugPrint('🔇 语音播报已关闭，跳过播报');
+      return;
+    }
     if (!_ttsReady) {
-      debugPrint('TTS 未就绪，跳过播报');
+      debugPrint('⚠️ TTS 未就绪，跳过播报。状态: $_ttsStatus');
       return;
     }
     final priceText = goods.sellPrice == goods.sellPrice.toInt()
@@ -75,9 +128,15 @@ class _ScanPricePageState extends State<ScanPricePage> {
         : '${goods.sellPrice}';
     final text = '${goods.goodsName}，售价${priceText}元';
     debugPrint('TTS 播报: $text');
-    final result = await _flutterTts.speak(text);
-    if (result != 1) {
-      debugPrint('TTS speak 失败，返回值: $result');
+    try {
+      final result = await _flutterTts.speak(text);
+      if (result != 1) {
+        debugPrint('⚠️ TTS speak 失败，返回值: $result');
+      } else {
+        debugPrint('✅ TTS speak 成功');
+      }
+    } catch (e) {
+      debugPrint('⚠️ TTS speak 异常: $e');
     }
   }
 
@@ -247,6 +306,35 @@ class _ScanPricePageState extends State<ScanPricePage> {
                 '点击下方按钮开始扫码',
                 style: TextStyle(fontSize: 18, color: AppColors.textSecondary),
               ),
+              const SizedBox(height: 8),
+              // TTS 状态提示
+              if (!_ttsReady)
+                Container(
+                  margin: const EdgeInsets.only(top: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.accent.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.volume_off,
+                        size: 14,
+                        color: AppColors.accent.withOpacity(0.7),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _ttsStatus,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.accent.withOpacity(0.8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               const SizedBox(height: 40),
               if (history.isNotEmpty) ...[
                 const Align(
@@ -338,14 +426,42 @@ class _ScanPricePageState extends State<ScanPricePage> {
             ),
           ),
           const SizedBox(height: 24),
-          // 商品名称
-          Text(
-            goods.goodsName,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
+          // 商品名称 + 语音播报开关
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  goods.goodsName,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              // 语音播报开关按钮
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: _ttsReady ? _toggleTts : null,
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    child: Icon(
+                      _ttsEnabled && _ttsReady
+                          ? Icons.volume_up
+                          : Icons.volume_off,
+                      size: 24,
+                      color: _ttsReady
+                          ? (_ttsEnabled
+                              ? AppColors.primary
+                              : AppColors.textMuted)
+                          : AppColors.textMuted.withOpacity(0.4),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 6),
           // 品牌规格
