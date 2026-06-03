@@ -352,7 +352,8 @@ class _GoodsListPageState extends State<GoodsListPage> {
         ),
       ),
     ),
-  );
+  ),
+);
   }
 
   @override

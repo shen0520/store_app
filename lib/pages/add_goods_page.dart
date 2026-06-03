@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:speech_to_text/speech_to_text.dart';
 import 'scan_page.dart';
 import 'package:image_picker/image_picker.dart';
 import '../database/db_helper.dart';
@@ -25,6 +26,7 @@ class _AddGoodsPageState extends State<AddGoodsPage> {
   final _db = DBHelper();
   final _barcodeService = BarcodeService();
   final _picker = ImagePicker();
+  final _speech = SpeechToText();
 
   final _nameCtrl = TextEditingController();
   final _brandCtrl = TextEditingController();
@@ -41,9 +43,16 @@ class _AddGoodsPageState extends State<AddGoodsPage> {
   bool _isManualMode = false;
   bool _isNoBarcodeMode = false;
 
+  // 语音识别状态
+  bool _speechAvailable = false;
+  bool _isListening = false;
+  String _speechStatus = '';
+  TextEditingController? _activeSpeechCtrl;
+
   @override
   void initState() {
     super.initState();
+    _initSpeech();
     if (widget.existingGoods != null) {
       _isEditing = true;
       _loadExistingData(widget.existingGoods!);
@@ -73,6 +82,60 @@ class _AddGoodsPageState extends State<AddGoodsPage> {
     _purchasePriceCtrl.text = goods.purchasePrice?.toString() ?? '';
     _remarkCtrl.text = goods.remark ?? '';
     _imageUrl = goods.goodsImg;
+  }
+
+  /// 初始化语音识别
+  Future<void> _initSpeech() async {
+    try {
+      _speechAvailable = await _speech.initialize(
+        onStatus: (status) {
+          setState(() => _speechStatus = status);
+          if (status == 'done' || status == 'notListening') {
+            setState(() => _isListening = false);
+          }
+        },
+        onError: (error) {
+          debugPrint('语音识别错误: $error');
+          setState(() => _isListening = false);
+        },
+      );
+    } catch (e) {
+      debugPrint('语音识别初始化失败: $e');
+    }
+  }
+
+  /// 启动语音输入到指定控制器
+  Future<void> _startVoiceInput(TextEditingController controller) async {
+    if (!_speechAvailable) {
+      _showInfo('语音识别不可用，请检查麦克风权限');
+      return;
+    }
+    if (_isListening) {
+      await _speech.stop();
+      setState(() => _isListening = false);
+      return;
+    }
+
+    setState(() {
+      _isListening = true;
+      _activeSpeechCtrl = controller;
+    });
+
+    await _speech.listen(
+      onResult: (result) {
+        if (result.recognizedWords.isNotEmpty) {
+          setState(() {
+            controller.text = result.recognizedWords;
+          });
+        }
+        if (result.finalResult) {
+          setState(() => _isListening = false);
+        }
+      },
+      listenFor: const Duration(seconds: 30),
+      pauseFor: const Duration(seconds: 3),
+      localeId: 'zh_CN',
+    );
   }
 
   void _resetAndContinue() {
@@ -521,6 +584,9 @@ class _AddGoodsPageState extends State<AddGoodsPage> {
 
   Widget _buildField(String label, TextEditingController controller,
       {TextInputType? keyboardType, bool required = false, int maxLines = 1, String? hint}) {
+    final isNumberField = keyboardType == TextInputType.number;
+    final isListeningThisField = _isListening && _activeSpeechCtrl == controller;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(
@@ -549,6 +615,17 @@ class _AddGoodsPageState extends State<AddGoodsPage> {
                 borderSide: const BorderSide(color: AppColors.primary),
               ),
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              suffixIcon: !isNumberField
+                  ? IconButton(
+                      onPressed: () => _startVoiceInput(controller),
+                      icon: Icon(
+                        isListeningThisField ? Icons.mic : Icons.mic_none,
+                        color: isListeningThisField ? AppColors.primary : AppColors.textMuted,
+                        size: 22,
+                      ),
+                      tooltip: '语音输入',
+                    )
+                  : null,
             ),
           ),
         ],

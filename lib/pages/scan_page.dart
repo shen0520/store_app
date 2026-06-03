@@ -101,15 +101,14 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
                     style: TextStyle(color: Colors.white, fontSize: 16),
                   ),
                 ),
-                ValueListenableBuilder<TorchState>(
-                  valueListenable: _controller.torchState,
+                ValueListenableBuilder<MobileScannerState>(
+                  valueListenable: _controller,
                   builder: (context, state, child) {
+                    final torchOn = state.torchState == TorchState.on;
                     return IconButton(
                       onPressed: () => _controller.toggleTorch(),
                       icon: Icon(
-                        state == TorchState.on
-                            ? Icons.flashlight_on
-                            : Icons.flashlight_off,
+                        torchOn ? Icons.flashlight_on : Icons.flashlight_off,
                         color: Colors.white,
                       ),
                     );
