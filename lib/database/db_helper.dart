@@ -195,6 +195,32 @@ class DBHelper {
     return (results.first['count'] as int) > 0;
   }
 
+  /// 生成无条码商品的内部条码
+  /// 格式: sd + 8位递增数字，如 sd00000001, sd00000002
+  /// 从 sd00000001 开始，避免全零的歧义
+  Future<String> generateNoBarcode() async {
+    final db = await database;
+
+    // 查询当前最大的 sd 系列条码
+    final results = await db.rawQuery(
+      "SELECT barcode FROM goods WHERE barcode LIKE 'sd%' ORDER BY barcode DESC LIMIT 1",
+    );
+
+    int nextNum = 1;
+    if (results.isNotEmpty) {
+      final lastBarcode = results.first['barcode'] as String;
+      // 提取数字部分（去掉 'sd' 前缀）
+      final numStr = lastBarcode.substring(2);
+      final num = int.tryParse(numStr);
+      if (num != null && num >= 0) {
+        nextNum = num + 1;
+      }
+    }
+
+    // 格式化为 8 位数字，前面补零
+    return 'sd${nextNum.toString().padLeft(8, '0')}';
+  }
+
   Future<int> getGoodsCount() async {
     final db = await database;
     final results = await db.rawQuery('SELECT COUNT(*) as count FROM goods');

@@ -86,20 +86,42 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
+        child: Column(
           children: [
-            IconButton(
-              onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
+            Row(
+              children: [
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                ),
+                const Expanded(
+                  child: Text(
+                    '对准条码自动扫描',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white, fontSize: 16),
+                  ),
+                ),
+                const SizedBox(width: 48),
+              ],
             ),
-            const Expanded(
-              child: Text(
-                '对准条码自动扫描',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white, fontSize: 16),
+            const SizedBox(height: 12),
+            ElevatedButton.icon(
+              onPressed: () => Navigator.pop(context, '__NO_BARCODE__'),
+              icon: const Icon(Icons.edit_note, size: 18, color: Colors.white),
+              label: const Text(
+                '无条码商品录入',
+                style: TextStyle(color: Colors.white, fontSize: 15),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF008855),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                elevation: 0,
               ),
             ),
-            const SizedBox(width: 48),
           ],
         ),
       ),

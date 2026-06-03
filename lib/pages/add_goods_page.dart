@@ -39,6 +39,7 @@ class _AddGoodsPageState extends State<AddGoodsPage> {
   bool _isLoading = false;
   bool _isEditing = false;
   bool _isManualMode = false;
+  bool _isNoBarcodeMode = false;
 
   @override
   void initState() {
@@ -50,7 +51,8 @@ class _AddGoodsPageState extends State<AddGoodsPage> {
       _barcode = widget.initialBarcode!;
       _queryBarcode(_barcode);
     } else {
-      _scanBarcode();
+      // 不再自动打开扫码页，默认进入手动录入模式，等用户主动选择
+      setState(() => _isManualMode = true);
     }
   }
 
@@ -72,8 +74,20 @@ class _AddGoodsPageState extends State<AddGoodsPage> {
     );
 
     if (result != null && result.isNotEmpty) {
-      setState(() => _barcode = result);
-      _checkExistingAndQuery();
+      if (result == '__NO_BARCODE__') {
+        // 用户选择了无条码录入
+        setState(() {
+          _isNoBarcodeMode = true;
+          _barcode = '';
+          _isManualMode = true;
+        });
+      } else {
+        setState(() {
+          _isNoBarcodeMode = false;
+          _barcode = result;
+        });
+        _checkExistingAndQuery();
+      }
     }
   }
 
@@ -178,7 +192,8 @@ class _AddGoodsPageState extends State<AddGoodsPage> {
   }
 
   Future<void> _saveGoods() async {
-    if (_barcode.isEmpty) {
+    // 条码校验：非无条码模式且非编辑模式下，条码不能为空
+    if (!_isNoBarcodeMode && _barcode.isEmpty && !_isEditing) {
       _showError('条码不能为空');
       return;
     }
@@ -201,12 +216,24 @@ class _AddGoodsPageState extends State<AddGoodsPage> {
         ? double.tryParse(_purchasePriceCtrl.text.trim())
         : null;
 
+    // 无条码模式下自动生成条码
+    String finalBarcode = _barcode;
+    if (_isNoBarcodeMode && !_isEditing) {
+      finalBarcode = await _db.generateNoBarcode();
+      // 兜底校验：若冲突则重新生成（防止极端并发情况）
+      int retryCount = 0;
+      while (await _db.barcodeExists(finalBarcode) && retryCount < 10) {
+        finalBarcode = await _db.generateNoBarcode();
+        retryCount++;
+      }
+    }
+
     final now = DateTime.now();
     final imagePath = _localImage?.path ?? _imageUrl;
 
     final goods = Goods(
       id: _isEditing ? widget.existingGoods!.id : null,
-      barcode: _barcode,
+      barcode: finalBarcode,
       goodsName: _nameCtrl.text.trim(),
       brand: _brandCtrl.text.trim().isNotEmpty ? _brandCtrl.text.trim() : null,
       spec: _specCtrl.text.trim().isNotEmpty ? _specCtrl.text.trim() : null,
@@ -385,27 +412,38 @@ class _AddGoodsPageState extends State<AddGoodsPage> {
               children: [
                 const Text('商品条码', style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
                 const SizedBox(height: 4),
-                Text(
-                  _barcode.isEmpty ? '未扫描' : _barcode,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                if (_isNoBarcodeMode)
+                  const Text(
+                    '自动生成',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  )
+                else
+                  Text(
+                    _barcode.isEmpty ? '未扫描' : _barcode,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: _barcode.isEmpty ? AppColors.textMuted : AppColors.textPrimary,
+                    ),
                   ),
-                ),
               ],
             ),
           ),
-          ElevatedButton.icon(
-            onPressed: _scanBarcode,
-            icon: const Icon(Icons.qr_code_scanner, size: 18),
-            label: Text(_barcode.isEmpty ? '扫码' : '重扫'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.accent,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          if (!_isNoBarcodeMode)
+            ElevatedButton.icon(
+              onPressed: _scanBarcode,
+              icon: const Icon(Icons.qr_code_scanner, size: 18),
+              label: Text(_barcode.isEmpty ? '扫码' : '重扫'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.accent,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
             ),
-          ),
         ],
       ),
     );
