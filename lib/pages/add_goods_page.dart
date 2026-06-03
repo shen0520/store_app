@@ -89,6 +89,7 @@ class _AddGoodsPageState extends State<AddGoodsPage> {
     try {
       _speechAvailable = await _speech.initialize(
         onStatus: (status) {
+          if (!mounted) return;
           setState(() => _speechStatus = status);
           if (status == 'done' || status == 'notListening') {
             setState(() => _isListening = false);
@@ -96,6 +97,7 @@ class _AddGoodsPageState extends State<AddGoodsPage> {
         },
         onError: (error) {
           debugPrint('语音识别错误: $error');
+          if (!mounted) return;
           setState(() => _isListening = false);
         },
       );
@@ -123,6 +125,7 @@ class _AddGoodsPageState extends State<AddGoodsPage> {
 
     await _speech.listen(
       onResult: (result) {
+        if (!mounted) return;
         if (result.recognizedWords.isNotEmpty) {
           setState(() {
             controller.text = result.recognizedWords;
@@ -132,7 +135,7 @@ class _AddGoodsPageState extends State<AddGoodsPage> {
           setState(() => _isListening = false);
         }
       },
-      listenFor: const Duration(seconds: 30),
+      listenFor: const Duration(seconds: 10),
       pauseFor: const Duration(seconds: 3),
       localeId: 'zh_CN',
     );
@@ -635,6 +638,7 @@ class _AddGoodsPageState extends State<AddGoodsPage> {
 
   @override
   void dispose() {
+    _speech.stop();
     _nameCtrl.dispose();
     _brandCtrl.dispose();
     _specCtrl.dispose();
