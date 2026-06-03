@@ -48,8 +48,16 @@ class _AddGoodsPageState extends State<AddGoodsPage> {
       _isEditing = true;
       _loadExistingData(widget.existingGoods!);
     } else if (widget.initialBarcode != null) {
-      _barcode = widget.initialBarcode!;
-      _queryBarcode(_barcode);
+      if (widget.initialBarcode == '__NO_BARCODE__') {
+        setState(() {
+          _isNoBarcodeMode = true;
+          _barcode = '';
+          _isManualMode = true;
+        });
+      } else {
+        _barcode = widget.initialBarcode!;
+        _queryBarcode(_barcode);
+      }
     } else {
       // 不再自动打开扫码页，默认进入手动录入模式，等用户主动选择
       setState(() => _isManualMode = true);
@@ -65,6 +73,24 @@ class _AddGoodsPageState extends State<AddGoodsPage> {
     _purchasePriceCtrl.text = goods.purchasePrice?.toString() ?? '';
     _remarkCtrl.text = goods.remark ?? '';
     _imageUrl = goods.goodsImg;
+  }
+
+  void _resetAndContinue() {
+    setState(() {
+      _isEditing = false;
+      _isNoBarcodeMode = false;
+      _isManualMode = false;
+      _barcode = '';
+      _imageUrl = null;
+      _localImage = null;
+    });
+    _nameCtrl.clear();
+    _brandCtrl.clear();
+    _specCtrl.clear();
+    _sellPriceCtrl.clear();
+    _purchasePriceCtrl.clear();
+    _remarkCtrl.clear();
+    _scanBarcode();
   }
 
   Future<void> _scanBarcode() async {
@@ -259,13 +285,24 @@ class _AddGoodsPageState extends State<AddGoodsPage> {
           barrierDismissible: false,
           builder: (ctx) => AlertDialog(
             title: const Text('保存成功'),
+            content: _isEditing
+                ? null
+                : const Text('继续录入下一件商品，或返回首页？'),
             actions: [
+              if (!_isEditing)
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _resetAndContinue();
+                  },
+                  child: const Text('继续录入', style: TextStyle(color: AppColors.accent)),
+                ),
               TextButton(
                 onPressed: () {
                   Navigator.pop(ctx);
                   Navigator.pop(context, true);
                 },
-                child: const Text('确定', style: TextStyle(color: AppColors.primary)),
+                child: Text(_isEditing ? '确定' : '返回首页', style: const TextStyle(color: AppColors.primary)),
               ),
             ],
           ),

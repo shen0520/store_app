@@ -43,7 +43,7 @@ class _GoodsListPageState extends State<GoodsListPage> {
     });
   }
 
-  Future<void> _deleteGoods(Goods goods) async {
+  Future<bool> _deleteGoods(Goods goods) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -72,7 +72,9 @@ class _GoodsListPageState extends State<GoodsListPage> {
           ),
         );
       }
+      return true;
     }
+    return false;
   }
 
   Future<void> _editGoods(Goods goods) async {
@@ -202,12 +204,36 @@ class _GoodsListPageState extends State<GoodsListPage> {
   }
 
   Widget _buildGoodsCard(Goods goods) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      color: AppColors.cardBg,
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      child: Padding(
+    return Dismissible(
+      key: ValueKey(goods.id ?? goods.barcode),
+      direction: DismissDirection.endToStart,
+      confirmDismiss: (_) => _deleteGoods(goods),
+      background: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: AppColors.danger,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        child: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.delete, color: Colors.white, size: 28),
+            SizedBox(height: 4),
+            Text('删除', style: TextStyle(color: Colors.white, fontSize: 12)),
+          ],
+        ),
+      ),
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 12),
+        color: AppColors.cardBg,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        child: InkWell(
+          onTap: () => _editGoods(goods),
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -325,7 +351,8 @@ class _GoodsListPageState extends State<GoodsListPage> {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 
   @override

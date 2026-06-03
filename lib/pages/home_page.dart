@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../utils/app_colors.dart';
 import '../providers/goods_provider.dart';
+import 'scan_page.dart';
 import 'add_goods_page.dart';
 import 'scan_price_page.dart';
 import 'goods_list_page.dart';
@@ -43,10 +44,20 @@ class HomePage extends StatelessWidget {
                 icon: Icons.qr_code_scanner,
                 label: '录入新商品',
                 subLabel: '扫码自动获取商品信息',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AddGoodsPage()),
-                ),
+                onTap: () async {
+                  final barcode = await Navigator.push<String>(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ScanPage()),
+                  );
+                  if (barcode != null && barcode.isNotEmpty && context.mounted) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => AddGoodsPage(initialBarcode: barcode),
+                      ),
+                    );
+                  }
+                },
               ),
               const SizedBox(height: 20),
               _buildMainButton(
