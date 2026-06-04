@@ -132,11 +132,6 @@ class _AddGoodsPageState extends State<AddGoodsPage> with WidgetsBindingObserver
   // ─── 长按语音交互 ───
 
   void _onMicPointerDown(_VoiceField field, Offset position) {
-    final focusNode = _getFocusNode(field);
-    if (!focusNode.hasFocus) {
-      _showInfo('请先点击要填写的输入框');
-      return;
-    }
     if (!_speechAvailable) {
       _showInfo('语音识别不可用，请检查麦克风权限');
       return;
@@ -151,7 +146,7 @@ class _AddGoodsPageState extends State<AddGoodsPage> with WidgetsBindingObserver
 
     setState(() => _isRecording = true);
 
-    _maxDurationTimer = Timer(const Duration(seconds: 60), () {
+    _maxDurationTimer = Timer(const Duration(seconds: 30), () {
       if (_isRecording) _stopRecordingAndRecognize();
     });
 
@@ -160,13 +155,17 @@ class _AddGoodsPageState extends State<AddGoodsPage> with WidgetsBindingObserver
         if (!mounted) return;
         if (result.recognizedWords.isNotEmpty) {
           _recognizedWords = result.recognizedWords;
+          // 实时写入输入框（像第一版本那样边录边出）
+          if (_recordingField != null) {
+            _getController(_recordingField!).text = _recognizedWords;
+          }
         }
       },
       onSoundLevelChange: (level) {
         if (!mounted) return;
         setState(() => _currentSoundLevel = level);
       },
-      listenFor: const Duration(seconds: 60),
+      listenFor: const Duration(seconds: 30),
       pauseFor: const Duration(seconds: 3),
       localeId: 'zh_CN',
     );
@@ -209,13 +208,20 @@ class _AddGoodsPageState extends State<AddGoodsPage> with WidgetsBindingObserver
 
   Future<void> _stopRecordingAndRecognize() async {
     await _speech.stop();
+    // 先关闭录音 UI，避免用户觉得卡住
+    if (mounted) {
+      setState(() => _isRecording = false);
+    }
+    // 给语音识别引擎时间返回最终结果（onResult 的最终回调可能延迟）
+    await Future.delayed(const Duration(milliseconds: 1000));
     if (!mounted) return;
-    setState(() => _isRecording = false);
 
-    if (_recognizedWords.isNotEmpty && _recordingField != null) {
-      _getController(_recordingField!).text = _recognizedWords;
-    } else {
-      _showInfo('语音识别失败，请重试');
+    // onResult 已实时写入，这里做最终确认；如果仍为空才提示失败
+    if (_recognizedWords.isEmpty && _recordingField != null) {
+      final currentText = _getController(_recordingField!).text;
+      if (currentText.isEmpty) {
+        _showInfo('语音识别失败，请重试');
+      }
     }
   }
 
@@ -724,7 +730,8 @@ class _AddGoodsPageState extends State<AddGoodsPage> with WidgetsBindingObserver
               ],
             ),
           ),
-          if (!_isNoBarcodeMode)
+          // 手动录入的商品（sd 开头）编辑时不允许重扫条码
+          if (!_isNoBarcodeMode && !(_isEditing && _barcode.startsWith('sd')))
             ElevatedButton.icon(
               onPressed: _scanBarcode,
               icon: const Icon(Icons.qr_code_scanner, size: 18),
