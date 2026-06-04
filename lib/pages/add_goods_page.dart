@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
@@ -22,7 +23,10 @@ class AddGoodsPage extends StatefulWidget {
   State<AddGoodsPage> createState() => _AddGoodsPageState();
 }
 
-class _AddGoodsPageState extends State<AddGoodsPage> {
+/// 支持语音输入的字段
+enum _VoiceField { name, brand, spec, remark }
+
+class _AddGoodsPageState extends State<AddGoodsPage> with WidgetsBindingObserver {
   final _db = DBHelper();
   final _barcodeService = BarcodeService();
   final _picker = ImagePicker();
@@ -45,13 +49,27 @@ class _AddGoodsPageState extends State<AddGoodsPage> {
 
   // 语音识别状态
   bool _speechAvailable = false;
-  bool _isListening = false;
-  String _speechStatus = '';
-  TextEditingController? _activeSpeechCtrl;
+
+  // FocusNodes
+  final _nameFocus = FocusNode();
+  final _brandFocus = FocusNode();
+  final _specFocus = FocusNode();
+  final _remarkFocus = FocusNode();
+
+  // 录音交互状态
+  bool _isRecording = false;
+  bool _isCancelled = false;
+  DateTime? _recordingStartTime;
+  Timer? _maxDurationTimer;
+  double _currentSoundLevel = 0;
+  Offset? _pointerDownPosition;
+  _VoiceField? _recordingField;
+  String _recognizedWords = '';
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initSpeech();
     if (widget.existingGoods != null) {
       _isEditing = true;
@@ -73,6 +91,15 @@ class _AddGoodsPageState extends State<AddGoodsPage> {
     }
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if ((state == AppLifecycleState.paused ||
+            state == AppLifecycleState.inactive) &&
+        _isRecording) {
+      _cancelRecording();
+    }
+  }
+
   void _loadExistingData(Goods goods) {
     _barcode = goods.barcode;
     _nameCtrl.text = goods.goodsName;
@@ -88,17 +115,13 @@ class _AddGoodsPageState extends State<AddGoodsPage> {
   Future<void> _initSpeech() async {
     try {
       _speechAvailable = await _speech.initialize(
-        onStatus: (status) {
-          if (!mounted) return;
-          setState(() => _speechStatus = status);
-          if (status == 'done' || status == 'notListening') {
-            setState(() => _isListening = false);
-          }
-        },
         onError: (error) {
           debugPrint('语音识别错误: $error');
           if (!mounted) return;
-          setState(() => _isListening = false);
+          if (_isRecording) {
+            _cancelRecording();
+            _showInfo('麦克风被占用或识别出错，请重试');
+          }
         },
       );
     } catch (e) {
@@ -106,39 +129,128 @@ class _AddGoodsPageState extends State<AddGoodsPage> {
     }
   }
 
-  /// 启动语音输入到指定控制器
-  Future<void> _startVoiceInput(TextEditingController controller) async {
+  // ─── 长按语音交互 ───
+
+  void _onMicPointerDown(_VoiceField field, Offset position) {
+    final focusNode = _getFocusNode(field);
+    if (!focusNode.hasFocus) {
+      _showInfo('请先点击要填写的输入框');
+      return;
+    }
     if (!_speechAvailable) {
       _showInfo('语音识别不可用，请检查麦克风权限');
       return;
     }
-    if (_isListening) {
-      await _speech.stop();
-      setState(() => _isListening = false);
-      return;
-    }
 
-    setState(() {
-      _isListening = true;
-      _activeSpeechCtrl = controller;
+    _pointerDownPosition = position;
+    _recordingStartTime = DateTime.now();
+    _isCancelled = false;
+    _recognizedWords = '';
+    _recordingField = field;
+    _currentSoundLevel = 0;
+
+    setState(() => _isRecording = true);
+
+    _maxDurationTimer = Timer(const Duration(seconds: 60), () {
+      if (_isRecording) _stopRecordingAndRecognize();
     });
 
-    await _speech.listen(
+    _speech.listen(
       onResult: (result) {
         if (!mounted) return;
         if (result.recognizedWords.isNotEmpty) {
-          setState(() {
-            controller.text = result.recognizedWords;
-          });
-        }
-        if (result.finalResult) {
-          setState(() => _isListening = false);
+          _recognizedWords = result.recognizedWords;
         }
       },
-      listenFor: const Duration(seconds: 10),
+      onSoundLevelChange: (level) {
+        if (!mounted) return;
+        setState(() => _currentSoundLevel = level);
+      },
+      listenFor: const Duration(seconds: 60),
       pauseFor: const Duration(seconds: 3),
       localeId: 'zh_CN',
     );
+  }
+
+  void _onMicPointerMove(Offset position) {
+    if (!_isRecording || _pointerDownPosition == null) return;
+    final dy = position.dy - _pointerDownPosition!.dy;
+    final shouldCancel = dy < -80;
+    if (shouldCancel != _isCancelled) {
+      setState(() => _isCancelled = shouldCancel);
+    }
+  }
+
+  Future<void> _onMicPointerUp() async {
+    if (!_isRecording) return;
+
+    final duration = DateTime.now().difference(_recordingStartTime!);
+    _maxDurationTimer?.cancel();
+    _maxDurationTimer = null;
+
+    // 误触保护
+    if (duration < const Duration(milliseconds: 500)) {
+      await _speech.cancel();
+      setState(() => _isRecording = false);
+      _showInfo('录音过短');
+      return;
+    }
+
+    // 已取消
+    if (_isCancelled) {
+      await _speech.cancel();
+      setState(() => _isRecording = false);
+      return;
+    }
+
+    // 正常结束
+    await _stopRecordingAndRecognize();
+  }
+
+  Future<void> _stopRecordingAndRecognize() async {
+    await _speech.stop();
+    if (!mounted) return;
+    setState(() => _isRecording = false);
+
+    if (_recognizedWords.isNotEmpty && _recordingField != null) {
+      _getController(_recordingField!).text = _recognizedWords;
+    } else {
+      _showInfo('语音识别失败，请重试');
+    }
+  }
+
+  Future<void> _cancelRecording() async {
+    _maxDurationTimer?.cancel();
+    _maxDurationTimer = null;
+    await _speech.cancel();
+    if (!mounted) return;
+    setState(() => _isRecording = false);
+  }
+
+  TextEditingController _getController(_VoiceField field) {
+    switch (field) {
+      case _VoiceField.name:
+        return _nameCtrl;
+      case _VoiceField.brand:
+        return _brandCtrl;
+      case _VoiceField.spec:
+        return _specCtrl;
+      case _VoiceField.remark:
+        return _remarkCtrl;
+    }
+  }
+
+  FocusNode _getFocusNode(_VoiceField field) {
+    switch (field) {
+      case _VoiceField.name:
+        return _nameFocus;
+      case _VoiceField.brand:
+        return _brandFocus;
+      case _VoiceField.spec:
+        return _specFocus;
+      case _VoiceField.remark:
+        return _remarkFocus;
+    }
   }
 
   void _resetAndContinue() {
@@ -420,6 +532,73 @@ class _AddGoodsPageState extends State<AddGoodsPage> {
     );
   }
 
+  // ─── 录音弹窗覆盖层 ───
+
+  Widget _buildRecordingOverlay() {
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: Container(
+          color: Colors.black.withOpacity(0.5),
+          child: Center(
+            child: Container(
+              width: 220,
+              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+              decoration: BoxDecoration(
+                color: const Color(0xCC1A1A1A),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildSoundWave(),
+                  const SizedBox(height: 20),
+                  Icon(
+                    Icons.mic,
+                    size: 48,
+                    color: _isCancelled ? Colors.red : Colors.white,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    _isCancelled
+                        ? '松开取消'
+                        : '松开结束录音，上滑取消本次录入',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSoundWave() {
+    final normalized = (_currentSoundLevel.abs() / 50000).clamp(0.0, 1.0);
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(7, (index) {
+        final distFromCenter = (index - 3).abs();
+        final factor = 1 - distFromCenter * 0.2;
+        final height = 6 + normalized * 28 * factor;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 100),
+          width: 4,
+          height: height.clamp(6.0, 34.0),
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          decoration: BoxDecoration(
+            color: _isCancelled ? Colors.red : Colors.white,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        );
+      }),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -433,69 +612,78 @@ class _AddGoodsPageState extends State<AddGoodsPage> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (_isManualMode)
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(12),
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        color: AppColors.cardBg,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.info_outline, color: AppColors.accent, size: 20),
-                          SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              '手动录入模式：请填写商品信息',
-                              style: TextStyle(color: AppColors.accent, fontSize: 14),
+          : Stack(
+              children: [
+                SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (_isManualMode)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: AppColors.cardBg,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(Icons.info_outline, color: AppColors.accent, size: 20),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  '手动录入模式：请填写商品信息',
+                                  style: TextStyle(color: AppColors.accent, fontSize: 14),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      _buildBarcodeSection(),
+                      const SizedBox(height: 20),
+                      _buildImageSection(),
+                      const SizedBox(height: 20),
+                      _buildField('商品名称 *', _nameCtrl,
+                          focusNode: _nameFocus, field: _VoiceField.name, required: true),
+                      _buildField('品牌', _brandCtrl,
+                          focusNode: _brandFocus, field: _VoiceField.brand),
+                      _buildField('规格/净含量', _specCtrl,
+                          focusNode: _specFocus, field: _VoiceField.spec),
+                      _buildField('本店售价 *', _sellPriceCtrl,
+                          keyboardType: TextInputType.number, required: true),
+                      _buildField('进货价', _purchasePriceCtrl,
+                          keyboardType: TextInputType.number,
+                          hint: '仅店主可见，选填'),
+                      _buildField('备注', _remarkCtrl,
+                          focusNode: _remarkFocus, field: _VoiceField.remark, maxLines: 2),
+                      const SizedBox(height: 32),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          onPressed: _saveGoods,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            textStyle: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-                  _buildBarcodeSection(),
-                  const SizedBox(height: 20),
-                  _buildImageSection(),
-                  const SizedBox(height: 20),
-                  _buildField('商品名称 *', _nameCtrl, required: true),
-                  _buildField('品牌', _brandCtrl),
-                  _buildField('规格/净含量', _specCtrl),
-                  _buildField('本店售价 *', _sellPriceCtrl,
-                      keyboardType: TextInputType.number, required: true),
-                  _buildField('进货价', _purchasePriceCtrl,
-                      keyboardType: TextInputType.number,
-                      hint: '仅店主可见，选填'),
-                  _buildField('备注', _remarkCtrl, maxLines: 2),
-                  const SizedBox(height: 32),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: _saveGoods,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        textStyle: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                          child: Text(_isEditing ? '保存修改' : '保存商品'),
                         ),
                       ),
-                      child: Text(_isEditing ? '保存修改' : '保存商品'),
-                    ),
+                      const SizedBox(height: 20),
+                    ],
                   ),
-                  const SizedBox(height: 20),
-                ],
-              ),
+                ),
+                if (_isRecording) _buildRecordingOverlay(),
+              ],
             ),
     );
   }
@@ -585,10 +773,18 @@ class _AddGoodsPageState extends State<AddGoodsPage> {
     );
   }
 
-  Widget _buildField(String label, TextEditingController controller,
-      {TextInputType? keyboardType, bool required = false, int maxLines = 1, String? hint}) {
+  Widget _buildField(
+    String label,
+    TextEditingController controller, {
+    FocusNode? focusNode,
+    _VoiceField? field,
+    TextInputType? keyboardType,
+    bool required = false,
+    int maxLines = 1,
+    String? hint,
+  }) {
     final isNumberField = keyboardType == TextInputType.number;
-    final isListeningThisField = _isListening && _activeSpeechCtrl == controller;
+    final isRecordingThisField = _isRecording && _recordingField == field;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -599,6 +795,7 @@ class _AddGoodsPageState extends State<AddGoodsPage> {
           const SizedBox(height: 6),
           TextField(
             controller: controller,
+            focusNode: focusNode,
             keyboardType: keyboardType,
             maxLines: maxLines,
             style: const TextStyle(color: AppColors.textPrimary, fontSize: 16),
@@ -618,15 +815,20 @@ class _AddGoodsPageState extends State<AddGoodsPage> {
                 borderSide: const BorderSide(color: AppColors.primary),
               ),
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-              suffixIcon: !isNumberField
-                  ? IconButton(
-                      onPressed: () => _startVoiceInput(controller),
-                      icon: Icon(
-                        isListeningThisField ? Icons.mic : Icons.mic_none,
-                        color: isListeningThisField ? AppColors.primary : AppColors.textMuted,
-                        size: 22,
+              suffixIcon: !isNumberField && field != null
+                  ? Listener(
+                      onPointerDown: (event) => _onMicPointerDown(field, event.position),
+                      onPointerMove: (event) => _onMicPointerMove(event.position),
+                      onPointerUp: (_) => _onMicPointerUp(),
+                      child: IconButton(
+                        onPressed: null,
+                        icon: Icon(
+                          isRecordingThisField ? Icons.mic : Icons.mic_none,
+                          color: isRecordingThisField ? AppColors.primary : AppColors.textMuted,
+                          size: 22,
+                        ),
+                        tooltip: '长按语音输入',
                       ),
-                      tooltip: '语音输入',
                     )
                   : null,
             ),
@@ -638,7 +840,13 @@ class _AddGoodsPageState extends State<AddGoodsPage> {
 
   @override
   void dispose() {
-    _speech.stop();
+    WidgetsBinding.instance.removeObserver(this);
+    _maxDurationTimer?.cancel();
+    _speech.cancel();
+    _nameFocus.dispose();
+    _brandFocus.dispose();
+    _specFocus.dispose();
+    _remarkFocus.dispose();
     _nameCtrl.dispose();
     _brandCtrl.dispose();
     _specCtrl.dispose();

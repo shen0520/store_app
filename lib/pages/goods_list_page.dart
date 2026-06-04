@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:speech_to_text/speech_to_text.dart';
 import '../providers/goods_provider.dart';
 import '../models/goods.dart';
 import '../utils/app_colors.dart';
@@ -19,13 +20,31 @@ class _GoodsListPageState extends State<GoodsListPage> {
   Timer? _debounceTimer;
   final ScrollController _scrollController = ScrollController();
 
+  // 语音搜索
+  final _speech = SpeechToText();
+  bool _speechAvailable = false;
+  bool _isRecording = false;
+  bool _isCancelled = false;
+  DateTime? _recordingStartTime;
+  Timer? _maxDurationTimer;
+  double _currentSoundLevel = 0;
+  Offset? _pointerDownPosition;
+  String _recognizedWords = '';
+
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
-    // 页面打开后加载数据
+    _initSpeech();
+    // 页面打开后加载数据（若存在上次搜索残留，先清空搜索词）
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<GoodsProvider>().loadGoods();
+      final provider = context.read<GoodsProvider>();
+      if (provider.searchQuery != null) {
+        _searchCtrl.clear();
+        provider.search('');
+      } else {
+        provider.loadGoods();
+      }
     });
   }
 
@@ -34,6 +53,121 @@ class _GoodsListPageState extends State<GoodsListPage> {
         _scrollController.position.maxScrollExtent - 200) {
       context.read<GoodsProvider>().loadMore();
     }
+  }
+
+  // ─── 语音搜索 ───
+
+  Future<void> _initSpeech() async {
+    try {
+      _speechAvailable = await _speech.initialize(
+        onError: (error) {
+          debugPrint('语音识别错误: $error');
+          if (!mounted) return;
+          if (_isRecording) {
+            _cancelRecording();
+            _showInfo('麦克风被占用或识别出错，请重试');
+          }
+        },
+      );
+    } catch (e) {
+      debugPrint('语音识别初始化失败: $e');
+    }
+  }
+
+  void _onMicPointerDown(Offset position) {
+    if (!_speechAvailable) {
+      _showInfo('语音识别不可用，请检查麦克风权限');
+      return;
+    }
+    _pointerDownPosition = position;
+    _recordingStartTime = DateTime.now();
+    _isCancelled = false;
+    _recognizedWords = '';
+    _currentSoundLevel = 0;
+
+    setState(() => _isRecording = true);
+
+    _maxDurationTimer = Timer(const Duration(seconds: 60), () {
+      if (_isRecording) _stopRecordingAndRecognize();
+    });
+
+    _speech.listen(
+      onResult: (result) {
+        if (!mounted) return;
+        if (result.recognizedWords.isNotEmpty) {
+          _recognizedWords = result.recognizedWords;
+        }
+      },
+      onSoundLevelChange: (level) {
+        if (!mounted) return;
+        setState(() => _currentSoundLevel = level);
+      },
+      listenFor: const Duration(seconds: 60),
+      pauseFor: const Duration(seconds: 3),
+      localeId: 'zh_CN',
+    );
+  }
+
+  void _onMicPointerMove(Offset position) {
+    if (!_isRecording || _pointerDownPosition == null) return;
+    final dy = position.dy - _pointerDownPosition!.dy;
+    final shouldCancel = dy < -80;
+    if (shouldCancel != _isCancelled) {
+      setState(() => _isCancelled = shouldCancel);
+    }
+  }
+
+  Future<void> _onMicPointerUp() async {
+    if (!_isRecording) return;
+
+    final duration = DateTime.now().difference(_recordingStartTime!);
+    _maxDurationTimer?.cancel();
+    _maxDurationTimer = null;
+
+    // 误触保护
+    if (duration < const Duration(milliseconds: 500)) {
+      await _speech.cancel();
+      setState(() => _isRecording = false);
+      _showInfo('录音过短');
+      return;
+    }
+
+    // 已取消
+    if (_isCancelled) {
+      await _speech.cancel();
+      setState(() => _isRecording = false);
+      return;
+    }
+
+    // 正常结束
+    await _stopRecordingAndRecognize();
+  }
+
+  Future<void> _stopRecordingAndRecognize() async {
+    await _speech.stop();
+    if (!mounted) return;
+    setState(() => _isRecording = false);
+
+    if (_recognizedWords.isNotEmpty) {
+      _searchCtrl.text = _recognizedWords;
+      _onSearchChanged(_recognizedWords);
+    } else {
+      _showInfo('语音识别失败，请重试');
+    }
+  }
+
+  Future<void> _cancelRecording() async {
+    _maxDurationTimer?.cancel();
+    _maxDurationTimer = null;
+    await _speech.cancel();
+    if (!mounted) return;
+    setState(() => _isRecording = false);
+  }
+
+  void _showInfo(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: AppColors.primary),
+    );
   }
 
   void _onSearchChanged(String value) {
@@ -100,26 +234,98 @@ class _GoodsListPageState extends State<GoodsListPage> {
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
       ),
-      body: Column(
+      body: Stack(
         children: [
-          _buildSearchBar(),
-          Expanded(
-            child: Consumer<GoodsProvider>(
-              builder: (context, provider, child) {
-                if (provider.isLoading && provider.goodsList.isEmpty) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: AppColors.primary),
-                  );
-                }
-                if (provider.goodsList.isEmpty) {
-                  return _buildEmptyState();
-                }
-                return _buildList(provider);
-              },
-            ),
+          Column(
+            children: [
+              _buildSearchBar(),
+              Expanded(
+                child: Consumer<GoodsProvider>(
+                  builder: (context, provider, child) {
+                    if (provider.isLoading && provider.goodsList.isEmpty) {
+                      return const Center(
+                        child: CircularProgressIndicator(color: AppColors.primary),
+                      );
+                    }
+                    if (provider.goodsList.isEmpty) {
+                      return _buildEmptyState();
+                    }
+                    return _buildList(provider);
+                  },
+                ),
+              ),
+            ],
           ),
+          if (_isRecording) _buildRecordingOverlay(),
         ],
       ),
+    );
+  }
+
+  // ─── 录音弹窗覆盖层 ───
+
+  Widget _buildRecordingOverlay() {
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: Container(
+          color: Colors.black.withOpacity(0.5),
+          child: Center(
+            child: Container(
+              width: 220,
+              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+              decoration: BoxDecoration(
+                color: const Color(0xCC1A1A1A),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildSoundWave(),
+                  const SizedBox(height: 20),
+                  Icon(
+                    Icons.mic,
+                    size: 48,
+                    color: _isCancelled ? Colors.red : Colors.white,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    _isCancelled
+                        ? '松开取消'
+                        : '松开结束录音，上滑取消本次录入',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSoundWave() {
+    final normalized = (_currentSoundLevel.abs() / 50000).clamp(0.0, 1.0);
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(7, (index) {
+        final distFromCenter = (index - 3).abs();
+        final factor = 1 - distFromCenter * 0.2;
+        final height = 6 + normalized * 28 * factor;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 100),
+          width: 4,
+          height: height.clamp(6.0, 34.0),
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          decoration: BoxDecoration(
+            color: _isCancelled ? Colors.red : Colors.white,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        );
+      }),
     );
   }
 
@@ -141,15 +347,33 @@ class _GoodsListPageState extends State<GoodsListPage> {
           hintText: '搜索商品名称或条码',
           hintStyle: const TextStyle(color: AppColors.textMuted),
           prefixIcon: const Icon(Icons.search, color: AppColors.textMuted),
-          suffixIcon: _searchCtrl.text.isNotEmpty
-              ? IconButton(
+          suffixIcon: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_searchCtrl.text.isNotEmpty)
+                IconButton(
                   icon: const Icon(Icons.clear, color: AppColors.textMuted),
                   onPressed: () {
                     _searchCtrl.clear();
                     _onSearchChanged('');
                   },
-                )
-              : null,
+                ),
+              Listener(
+                onPointerDown: (event) => _onMicPointerDown(event.position),
+                onPointerMove: (event) => _onMicPointerMove(event.position),
+                onPointerUp: (_) => _onMicPointerUp(),
+                child: IconButton(
+                  onPressed: null,
+                  icon: Icon(
+                    _isRecording ? Icons.mic : Icons.mic_none,
+                    color: _isRecording ? AppColors.primary : AppColors.textMuted,
+                    size: 22,
+                  ),
+                  tooltip: '长按语音搜索',
+                ),
+              ),
+            ],
+          ),
           filled: true,
           fillColor: Colors.white,
           border: OutlineInputBorder(
@@ -359,6 +583,8 @@ class _GoodsListPageState extends State<GoodsListPage> {
   @override
   void dispose() {
     _debounceTimer?.cancel();
+    _maxDurationTimer?.cancel();
+    _speech.cancel();
     _searchCtrl.dispose();
     _scrollController.dispose();
     super.dispose();

@@ -167,10 +167,30 @@ class DBHelper {
   }) async {
     final db = await database;
     if (searchQuery != null && searchQuery.isNotEmpty) {
+      final keywords = searchQuery.trim().split(RegExp(r'\s+'));
+      final conditions = <String>[];
+      final args = <String>[];
+
+      // 整串匹配商品名称
+      conditions.add('goods_name LIKE ?');
+      args.add('%$searchQuery%');
+
+      // 空格分隔的关键词分别匹配商品名称（OR 关系）
+      for (final k in keywords) {
+        if (k.isNotEmpty) {
+          conditions.add('goods_name LIKE ?');
+          args.add('%$k%');
+        }
+      }
+
+      // 条码整串匹配
+      conditions.add('barcode LIKE ?');
+      args.add('%$searchQuery%');
+
       final results = await db.query(
         'goods',
-        where: 'goods_name LIKE ? OR barcode LIKE ?',
-        whereArgs: ['%$searchQuery%', '%$searchQuery%'],
+        where: conditions.join(' OR '),
+        whereArgs: args,
         orderBy: 'update_time DESC',
         limit: limit,
         offset: offset,
