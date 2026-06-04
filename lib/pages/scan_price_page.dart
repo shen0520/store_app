@@ -164,7 +164,17 @@ class _ScanPricePageState extends State<ScanPricePage> {
   }
 
   Future<void> _lookupPrice(String barcode) async {
+    // TODO: 临时调试日志，排查完注释掉
+    debugPrint('🔍 [扫码调试] 原始条码: "$barcode"');
+    debugPrint('🔍 [扫码调试] 长度: ${barcode.length}, runes: ${barcode.runes.toList()}');
+
     final goods = await _db.getGoodsByBarcode(barcode);
+
+    // TODO: 临时调试日志，排查完注释掉
+    debugPrint('🔍 [扫码调试] 查询结果: ${goods != null ? '找到 ${goods.goodsName}' : '未找到'}');
+    if (goods != null) {
+      debugPrint('🔍 [扫码调试] 数据库条码: "${goods.barcode}" 长度:${goods.barcode.length}');
+    }
 
     if (mounted) {
       setState(() {
@@ -530,6 +540,8 @@ class _ScanPricePageState extends State<ScanPricePage> {
               ],
             ),
           ),
+          // TODO: 临时调试面板，排查完注释掉
+          _buildDebugInfo(),
           const SizedBox(height: 40),
         ],
       ),
@@ -561,6 +573,55 @@ class _ScanPricePageState extends State<ScanPricePage> {
     );
   }
 
+  // TODO: 临时调试面板，排查完注释掉
+  Widget _buildDebugInfo() {
+    if (_lastBarcode.isEmpty) return const SizedBox.shrink();
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.yellow.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.orange.withOpacity(0.4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '[调试] 扫码原始数据',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.deepOrange,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '条码: "$_lastBarcode"',
+            style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+          ),
+          Text(
+            '长度: ${_lastBarcode.length}',
+            style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+          ),
+          Text(
+            '字符码点: ${_lastBarcode.runes.map((r) => '0x${r.toRadixString(16).toUpperCase()}').join(', ')}',
+            style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+          ),
+          Text(
+            '查询状态: ${_currentGoods != null ? '找到商品: ${_currentGoods!.goodsName}' : '未找到'}',
+            style: TextStyle(
+              fontSize: 13,
+              color: _currentGoods != null ? Colors.green : AppColors.danger,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildNotFound() {
     return Center(
       child: Column(
@@ -584,6 +645,8 @@ class _ScanPricePageState extends State<ScanPricePage> {
               color: AppColors.textMuted,
             ),
           ),
+          // TODO: 临时调试面板，排查完注释掉
+          _buildDebugInfo(),
           const SizedBox(height: 32),
           ElevatedButton.icon(
             onPressed: () {

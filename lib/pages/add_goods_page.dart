@@ -83,7 +83,7 @@ class _AddGoodsPageState extends State<AddGoodsPage> with WidgetsBindingObserver
         });
       } else {
         _barcode = widget.initialBarcode!;
-        _queryBarcode(_barcode);
+        _checkExistingAndQuery(); // 先检查条码是否已存在
       }
     } else {
       // 不再自动打开扫码页，默认进入手动录入模式，等用户主动选择
@@ -427,7 +427,7 @@ class _AddGoodsPageState extends State<AddGoodsPage> with WidgetsBindingObserver
         : null;
 
     // 无条码模式下自动生成条码
-    String finalBarcode = _barcode;
+    String finalBarcode = _barcode.trim();
     if (_isNoBarcodeMode && !_isEditing) {
       finalBarcode = await _db.generateNoBarcode();
       // 兜底校验：若冲突则重新生成（防止极端并发情况）
@@ -457,6 +457,10 @@ class _AddGoodsPageState extends State<AddGoodsPage> with WidgetsBindingObserver
 
     try {
       final provider = context.read<GoodsProvider>();
+      if (!_isEditing && await _db.barcodeExists(finalBarcode)) {
+        _showError('该条码已存在，请从商品列表中编辑');
+        return;
+      }
       if (_isEditing) {
         await provider.updateGoods(goods);
       } else {
@@ -484,7 +488,11 @@ class _AddGoodsPageState extends State<AddGoodsPage> with WidgetsBindingObserver
               TextButton(
                 onPressed: () {
                   Navigator.pop(ctx);
-                  Navigator.pop(context, true);
+                  if (_isEditing) {
+                    Navigator.pop(context, true);
+                  } else {
+                    Navigator.popUntil(context, (route) => route.isFirst);
+                  }
                 },
                 child: Text(_isEditing ? '确定' : '返回首页', style: const TextStyle(color: AppColors.primary)),
               ),
