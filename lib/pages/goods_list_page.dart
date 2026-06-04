@@ -362,14 +362,15 @@ class _GoodsListPageState extends State<GoodsListPage> {
                 onPointerDown: (event) => _onMicPointerDown(event.position),
                 onPointerMove: (event) => _onMicPointerMove(event.position),
                 onPointerUp: (_) => _onMicPointerUp(),
-                child: IconButton(
-                  onPressed: null,
-                  icon: Icon(
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  alignment: Alignment.center,
+                  child: Icon(
                     _isRecording ? Icons.mic : Icons.mic_none,
                     color: _isRecording ? AppColors.primary : AppColors.textMuted,
                     size: 22,
                   ),
-                  tooltip: '长按语音搜索',
                 ),
               ),
             ],

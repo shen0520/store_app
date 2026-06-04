@@ -820,14 +820,15 @@ class _AddGoodsPageState extends State<AddGoodsPage> with WidgetsBindingObserver
                       onPointerDown: (event) => _onMicPointerDown(field, event.position),
                       onPointerMove: (event) => _onMicPointerMove(event.position),
                       onPointerUp: (_) => _onMicPointerUp(),
-                      child: IconButton(
-                        onPressed: null,
-                        icon: Icon(
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        alignment: Alignment.center,
+                        child: Icon(
                           isRecordingThisField ? Icons.mic : Icons.mic_none,
                           color: isRecordingThisField ? AppColors.primary : AppColors.textMuted,
                           size: 22,
                         ),
-                        tooltip: '长按语音输入',
                       ),
                     )
                   : null,
