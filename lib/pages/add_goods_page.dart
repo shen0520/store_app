@@ -823,18 +823,22 @@ class _AddGoodsPageState extends State<AddGoodsPage> with WidgetsBindingObserver
               ),
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               suffixIcon: !isNumberField && field != null
-                  ? Listener(
-                      onPointerDown: (event) => _onMicPointerDown(field, event.position),
-                      onPointerMove: (event) => _onMicPointerMove(event.position),
-                      onPointerUp: (_) => _onMicPointerUp(),
-                      child: Container(
-                        width: 40,
-                        height: 40,
-                        alignment: Alignment.center,
-                        child: Icon(
-                          isRecordingThisField ? Icons.mic : Icons.mic_none,
-                          color: isRecordingThisField ? AppColors.primary : AppColors.textMuted,
-                          size: 22,
+                  ? Focus(
+                      canRequestFocus: false,
+                      descendantsAreFocusable: false,
+                      child: Listener(
+                        onPointerDown: (event) => _onMicPointerDown(field, event.position),
+                        onPointerMove: (event) => _onMicPointerMove(event.position),
+                        onPointerUp: (_) => _onMicPointerUp(),
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          alignment: Alignment.center,
+                          child: Icon(
+                            isRecordingThisField ? Icons.mic : Icons.mic_none,
+                            color: isRecordingThisField ? AppColors.primary : AppColors.textMuted,
+                            size: 22,
+                          ),
                         ),
                       ),
                     )
