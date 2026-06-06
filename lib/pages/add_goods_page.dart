@@ -137,6 +137,8 @@ class _AddGoodsPageState extends State<AddGoodsPage> with WidgetsBindingObserver
       _showInfo('语音识别不可用，请检查麦克风权限');
       return;
     }
+    // 收起键盘，避免语音输入时键盘遮挡
+    FocusScope.of(context).unfocus();
 
     _pointerDownPosition = position;
     _recordingStartTime = DateTime.now();

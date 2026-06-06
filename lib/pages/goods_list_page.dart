@@ -80,6 +80,8 @@ class _GoodsListPageState extends State<GoodsListPage> {
       _showInfo('语音识别不可用，请检查麦克风权限');
       return;
     }
+    // 收起键盘，避免语音输入时键盘遮挡
+    FocusScope.of(context).unfocus();
     _pointerDownPosition = position;
     _recordingStartTime = DateTime.now();
     _isCancelled = false;
@@ -367,18 +369,22 @@ class _GoodsListPageState extends State<GoodsListPage> {
                     _onSearchChanged('');
                   },
                 ),
-              Listener(
-                onPointerDown: (event) => _onMicPointerDown(event.position),
-                onPointerMove: (event) => _onMicPointerMove(event.position),
-                onPointerUp: (_) => _onMicPointerUp(),
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  alignment: Alignment.center,
-                  child: Icon(
-                    _isRecording ? Icons.mic : Icons.mic_none,
-                    color: _isRecording ? AppColors.primary : AppColors.textMuted,
-                    size: 22,
+              Focus(
+                canRequestFocus: false,
+                descendantsAreFocusable: false,
+                child: Listener(
+                  onPointerDown: (event) => _onMicPointerDown(event.position),
+                  onPointerMove: (event) => _onMicPointerMove(event.position),
+                  onPointerUp: (_) => _onMicPointerUp(),
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    alignment: Alignment.center,
+                    child: Icon(
+                      _isRecording ? Icons.mic : Icons.mic_none,
+                      color: _isRecording ? AppColors.primary : AppColors.textMuted,
+                      size: 22,
+                    ),
                   ),
                 ),
               ),
