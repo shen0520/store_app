@@ -165,16 +165,16 @@ class _ScanPricePageState extends State<ScanPricePage> {
 
   Future<void> _lookupPrice(String barcode) async {
     // TODO: 临时调试日志，排查完注释掉
-    debugPrint('🔍 [扫码调试] 原始条码: "$barcode"');
-    debugPrint('🔍 [扫码调试] 长度: ${barcode.length}, runes: ${barcode.runes.toList()}');
+    // debugPrint('🔍 [扫码调试] 原始条码: "$barcode"');
+    // debugPrint('🔍 [扫码调试] 长度: ${barcode.length}, runes: ${barcode.runes.toList()}');
 
     final goods = await _db.getGoodsByBarcode(barcode);
 
     // TODO: 临时调试日志，排查完注释掉
-    debugPrint('🔍 [扫码调试] 查询结果: ${goods != null ? '找到 ${goods.goodsName}' : '未找到'}');
-    if (goods != null) {
-      debugPrint('🔍 [扫码调试] 数据库条码: "${goods.barcode}" 长度:${goods.barcode.length}');
-    }
+    // debugPrint('🔍 [扫码调试] 查询结果: ${goods != null ? '找到 ${goods.goodsName}' : '未找到'}');
+    // if (goods != null) {
+    //   debugPrint('🔍 [扫码调试] 数据库条码: "${goods.barcode}" 长度:${goods.barcode.length}');
+    // }
 
     if (mounted) {
       setState(() {
@@ -541,7 +541,7 @@ class _ScanPricePageState extends State<ScanPricePage> {
             ),
           ),
           // TODO: 临时调试面板，排查完注释掉
-          _buildDebugInfo(),
+          // _buildDebugInfo(),
           const SizedBox(height: 40),
         ],
       ),
@@ -646,7 +646,7 @@ class _ScanPricePageState extends State<ScanPricePage> {
             ),
           ),
           // TODO: 临时调试面板，排查完注释掉
-          _buildDebugInfo(),
+          // _buildDebugInfo(),
           const SizedBox(height: 32),
           ElevatedButton.icon(
             onPressed: () {

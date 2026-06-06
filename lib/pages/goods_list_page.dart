@@ -30,6 +30,7 @@ class _GoodsListPageState extends State<GoodsListPage> {
   double _currentSoundLevel = 0;
   Offset? _pointerDownPosition;
   String _recognizedWords = '';
+  String _searchCtrlTextBeforeRecording = '';
 
   @override
   void initState() {
@@ -65,7 +66,7 @@ class _GoodsListPageState extends State<GoodsListPage> {
           if (!mounted) return;
           if (_isRecording) {
             _cancelRecording();
-            _showInfo('麦克风被占用或识别出错，请重试');
+            _showInfo('语音错误: $error');
           }
         },
       );
@@ -83,6 +84,7 @@ class _GoodsListPageState extends State<GoodsListPage> {
     _recordingStartTime = DateTime.now();
     _isCancelled = false;
     _recognizedWords = '';
+    _searchCtrlTextBeforeRecording = _searchCtrl.text;
     _currentSoundLevel = 0;
 
     setState(() => _isRecording = true);
@@ -96,6 +98,8 @@ class _GoodsListPageState extends State<GoodsListPage> {
         if (!mounted) return;
         if (result.recognizedWords.isNotEmpty) {
           _recognizedWords = result.recognizedWords;
+          // 实时追加到已有文字后
+          _searchCtrl.text = _searchCtrlTextBeforeRecording + _recognizedWords;
         }
       },
       onSoundLevelChange: (level) {
@@ -103,7 +107,7 @@ class _GoodsListPageState extends State<GoodsListPage> {
         setState(() => _currentSoundLevel = level);
       },
       listenFor: const Duration(seconds: 60),
-      pauseFor: const Duration(seconds: 3),
+      pauseFor: const Duration(seconds: 10),
       localeId: 'zh_CN',
     );
   }
@@ -148,11 +152,16 @@ class _GoodsListPageState extends State<GoodsListPage> {
     if (!mounted) return;
     setState(() => _isRecording = false);
 
+    // 给语音识别引擎时间返回最终结果（onResult 的最终回调可能延迟）
+    await Future.delayed(const Duration(milliseconds: 1000));
+    if (!mounted) return;
+
     if (_recognizedWords.isNotEmpty) {
-      _searchCtrl.text = _recognizedWords;
-      _onSearchChanged(_recognizedWords);
+      final fullText = _searchCtrlTextBeforeRecording + _recognizedWords;
+      _searchCtrl.text = fullText;
+      _onSearchChanged(fullText);
     } else {
-      _showInfo('语音识别失败，请重试');
+      _showInfo('识别无结果（未收到文字），请重试');
     }
   }
 

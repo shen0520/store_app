@@ -65,6 +65,7 @@ class _AddGoodsPageState extends State<AddGoodsPage> with WidgetsBindingObserver
   Offset? _pointerDownPosition;
   _VoiceField? _recordingField;
   String _recognizedWords = '';
+  String _fieldTextBeforeRecording = '';
 
   @override
   void initState() {
@@ -120,7 +121,7 @@ class _AddGoodsPageState extends State<AddGoodsPage> with WidgetsBindingObserver
           if (!mounted) return;
           if (_isRecording) {
             _cancelRecording();
-            _showInfo('麦克风被占用或识别出错，请重试');
+            _showInfo('语音错误: $error');
           }
         },
       );
@@ -142,6 +143,7 @@ class _AddGoodsPageState extends State<AddGoodsPage> with WidgetsBindingObserver
     _isCancelled = false;
     _recognizedWords = '';
     _recordingField = field;
+    _fieldTextBeforeRecording = _getController(field).text;
     _currentSoundLevel = 0;
 
     setState(() => _isRecording = true);
@@ -155,9 +157,10 @@ class _AddGoodsPageState extends State<AddGoodsPage> with WidgetsBindingObserver
         if (!mounted) return;
         if (result.recognizedWords.isNotEmpty) {
           _recognizedWords = result.recognizedWords;
-          // 实时写入输入框（像第一版本那样边录边出）
+          // 实时追加到已有文字后
           if (_recordingField != null) {
-            _getController(_recordingField!).text = _recognizedWords;
+            _getController(_recordingField!).text =
+                _fieldTextBeforeRecording + _recognizedWords;
           }
         }
       },
@@ -166,7 +169,7 @@ class _AddGoodsPageState extends State<AddGoodsPage> with WidgetsBindingObserver
         setState(() => _currentSoundLevel = level);
       },
       listenFor: const Duration(seconds: 30),
-      pauseFor: const Duration(seconds: 3),
+      pauseFor: const Duration(seconds: 10),
       localeId: 'zh_CN',
     );
   }
@@ -216,11 +219,17 @@ class _AddGoodsPageState extends State<AddGoodsPage> with WidgetsBindingObserver
     await Future.delayed(const Duration(milliseconds: 1000));
     if (!mounted) return;
 
-    // onResult 已实时写入，这里做最终确认；如果仍为空才提示失败
+    // 最终确认：用最新识别结果覆盖（防止延迟回调未触发导致不一致）
+    if (_recordingField != null && _recognizedWords.isNotEmpty) {
+      _getController(_recordingField!).text =
+          _fieldTextBeforeRecording + _recognizedWords;
+    }
+
+    // 如果最终仍为空才提示失败
     if (_recognizedWords.isEmpty && _recordingField != null) {
       final currentText = _getController(_recordingField!).text;
       if (currentText.isEmpty) {
-        _showInfo('语音识别失败，请重试');
+        _showInfo('识别无结果（未收到文字），请重试');
       }
     }
   }
@@ -375,7 +384,7 @@ class _AddGoodsPageState extends State<AddGoodsPage> with WidgetsBindingObserver
 
   Future<void> _pickImage() async {
     final picked = await _picker.pickImage(
-      source: ImageSource.gallery,
+      source: ImageSource.camera,
       maxWidth: 800,
       maxHeight: 800,
       imageQuality: 80,
