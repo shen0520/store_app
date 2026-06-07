@@ -147,10 +147,10 @@ class ImportService {
               // 避免文件名冲突
               final finalDest = await _ensureUniqueName(destFile);
               await srcFile.copy(finalDest.path);
-              goods.goodsImg = finalDest.path;
+              goodsList[goodsList.indexOf(goods)] = goods.copyWith(goodsImg: finalDest.path);
               copiedImages++;
             } else {
-              goods.goodsImg = null;
+              goodsList[goodsList.indexOf(goods)] = goods.copyWith(goodsImg: null);
               failedImages++;
             }
           }
