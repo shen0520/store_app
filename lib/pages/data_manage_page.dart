@@ -38,13 +38,17 @@ class _DataManagePageState extends State<DataManagePage> {
   Future<void> _exportData() async {
     setState(() => _isLoading = true);
     try {
-      final filePath = await _exportService.exportToJson();
+      final filePath = await _exportService.exportToZip(
+        onProgress: (current, total) {
+          // 可选：这里可以接进度条，目前不刷新 UI 避免卡顿
+        },
+      );
       if (mounted) {
         showDialog(
           context: context,
           builder: (ctx) => AlertDialog(
             title: const Text('导出成功'),
-            content: Text('商品数据已导出\n\n文件路径:\n$filePath'),
+            content: Text('商品数据已导出为 zip（含图片）\n\n文件路径:\n$filePath'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
@@ -60,21 +64,6 @@ class _DataManagePageState extends State<DataManagePage> {
             ],
           ),
         );
-      }
-    } catch (e) {
-      _showError('导出失败: $e');
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _exportToCsv() async {
-    setState(() => _isLoading = true);
-    try {
-      final filePath = await _exportService.exportToCsv();
-      if (mounted) {
-        _showInfo('CSV 导出成功');
-        await _exportService.shareExportedFile(filePath);
       }
     } catch (e) {
       _showError('导出失败: $e');
@@ -248,26 +237,19 @@ class _DataManagePageState extends State<DataManagePage> {
 
                   _buildSectionTitle('数据导出'),
                   const SizedBox(height: 8),
-                  _buildInfoText('将商品数据导出为文件，可分享给其他手机导入'),
+                  _buildInfoText('将商品数据打包为 zip 文件（含图片），可分享给其他手机导入'),
                   const SizedBox(height: 12),
                   _buildActionButton(
-                    label: '导出为 JSON (推荐)',
-                    icon: Icons.download,
+                    label: '导出为 zip（含图片）',
+                    icon: Icons.folder_zip,
                     onTap: _exportData,
-                    enabled: _goodsCount > 0,
-                  ),
-                  const SizedBox(height: 8),
-                  _buildActionButton(
-                    label: '导出为 CSV (Excel可打开)',
-                    icon: Icons.table_chart,
-                    onTap: _exportToCsv,
                     enabled: _goodsCount > 0,
                   ),
                   const SizedBox(height: 24),
 
                   _buildSectionTitle('数据导入'),
                   const SizedBox(height: 8),
-                  _buildInfoText('从 JSON 或 CSV 文件导入商品数据'),
+                  _buildInfoText('从 zip、JSON 或 CSV 文件导入商品数据'),
                   const SizedBox(height: 12),
                   _buildActionButton(
                     label: '导入数据',
