@@ -31,12 +31,14 @@ class _GoodsListPageState extends State<GoodsListPage> {
   Offset? _pointerDownPosition;
   String _recognizedWords = '';
   String _searchCtrlTextBeforeRecording = '';
+  int _goodsCount = 0;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
     _initSpeech();
+    _loadGoodsCount();
     // 页面打开后加载数据（若存在上次搜索残留，先清空搜索词）
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<GoodsProvider>();
@@ -47,6 +49,13 @@ class _GoodsListPageState extends State<GoodsListPage> {
         provider.loadGoods();
       }
     });
+  }
+
+  Future<void> _loadGoodsCount() async {
+    final count = await context.read<GoodsProvider>().getGoodsCount();
+    if (mounted) {
+      setState(() => _goodsCount = count);
+    }
   }
 
   void _onScroll() {
@@ -209,6 +218,7 @@ class _GoodsListPageState extends State<GoodsListPage> {
 
     if (confirm == true && goods.id != null) {
       await context.read<GoodsProvider>().deleteGoods(goods.id!);
+      await _loadGoodsCount();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -231,6 +241,7 @@ class _GoodsListPageState extends State<GoodsListPage> {
     );
     if (result == true && mounted) {
       await context.read<GoodsProvider>().loadGoods(refresh: true);
+      await _loadGoodsCount();
     }
   }
 
@@ -250,6 +261,7 @@ class _GoodsListPageState extends State<GoodsListPage> {
           Column(
             children: [
               _buildSearchBar(),
+              _buildStatsCard(),
               Expanded(
                 child: Consumer<GoodsProvider>(
                   builder: (context, provider, child) {
@@ -398,6 +410,82 @@ class _GoodsListPageState extends State<GoodsListPage> {
           ),
           contentPadding: const EdgeInsets.symmetric(vertical: 12),
         ),
+      ),
+    );
+  }
+
+  Widget _buildStatsCard() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [AppColors.primary, Color(0xFF006B44)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.25),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '商品总数',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(
+                      '$_goodsCount',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 40,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Text(
+                      '条',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.inventory_2_outlined,
+              color: Colors.white,
+              size: 28,
+            ),
+          ),
+        ],
       ),
     );
   }
