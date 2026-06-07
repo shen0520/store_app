@@ -150,7 +150,8 @@ class _ScanPricePageState extends State<ScanPricePage> {
 
     final result = await Navigator.push<String>(
       context,
-      MaterialPageRoute(builder: (_) => const ScanPage()),
+      MaterialPageRoute(
+          builder: (_) => const ScanPage(showNoBarcodeButton: false)),
     );
 
     if (result != null && result.isNotEmpty) {

@@ -4,7 +4,9 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../utils/app_colors.dart';
 
 class ScanPage extends StatefulWidget {
-  const ScanPage({super.key});
+  final bool showNoBarcodeButton;
+
+  const ScanPage({super.key, this.showNoBarcodeButton = true});
 
   @override
   State<ScanPage> createState() => _ScanPageState();
@@ -116,24 +118,26 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            ElevatedButton.icon(
-              onPressed: () => Navigator.pop(context, '__NO_BARCODE__'),
-              icon: const Icon(Icons.edit_note, size: 18, color: Colors.white),
-              label: const Text(
-                '无条码商品录入',
-                style: TextStyle(color: Colors.white, fontSize: 15),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF008855),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+            if (widget.showNoBarcodeButton) ...[
+              const SizedBox(height: 12),
+              ElevatedButton.icon(
+                onPressed: () => Navigator.pop(context, '__NO_BARCODE__'),
+                icon: const Icon(Icons.edit_note, size: 18, color: Colors.white),
+                label: const Text(
+                  '无条码商品录入',
+                  style: TextStyle(color: Colors.white, fontSize: 15),
                 ),
-                elevation: 0,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF008855),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  elevation: 0,
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),
