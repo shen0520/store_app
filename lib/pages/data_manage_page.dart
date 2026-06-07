@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../database/db_helper.dart';
 import '../providers/goods_provider.dart';
 import '../services/export_service.dart';
 import '../services/import_service.dart';
@@ -15,9 +16,24 @@ class DataManagePage extends StatefulWidget {
 class _DataManagePageState extends State<DataManagePage> {
   final _exportService = ExportService();
   final _importService = ImportService();
+  final DBHelper _db = DBHelper();
 
   bool _isLoading = false;
+  int _goodsCount = 0;
   String _conflictStrategy = 'skip'; // skip, overwrite, merge
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGoodsCount();
+  }
+
+  Future<void> _loadGoodsCount() async {
+    final count = await _db.getGoodsCount();
+    if (mounted) {
+      setState(() => _goodsCount = count);
+    }
+  }
 
   Future<void> _exportData() async {
     setState(() => _isLoading = true);
@@ -238,12 +254,14 @@ class _DataManagePageState extends State<DataManagePage> {
                     label: '导出为 JSON (推荐)',
                     icon: Icons.download,
                     onTap: _exportData,
+                    enabled: _goodsCount > 0,
                   ),
                   const SizedBox(height: 8),
                   _buildActionButton(
                     label: '导出为 CSV (Excel可打开)',
                     icon: Icons.table_chart,
                     onTap: _exportToCsv,
+                    enabled: _goodsCount > 0,
                   ),
                   const SizedBox(height: 24),
 
@@ -341,17 +359,18 @@ class _DataManagePageState extends State<DataManagePage> {
     required IconData icon,
     required VoidCallback onTap,
     Color? color,
+    bool enabled = true,
   }) {
     final btnColor = color ?? AppColors.primary;
     return SizedBox(
       width: double.infinity,
       height: 48,
       child: ElevatedButton.icon(
-        onPressed: onTap,
+        onPressed: enabled ? onTap : null,
         icon: Icon(icon, size: 20),
         label: Text(label, style: const TextStyle(fontSize: 16)),
         style: ElevatedButton.styleFrom(
-          backgroundColor: btnColor,
+          backgroundColor: enabled ? btnColor : AppColors.textMuted,
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           elevation: 0,
