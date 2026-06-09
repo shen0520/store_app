@@ -1,0 +1,1341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>小店扫码查价 - 宣传图</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    background: #f5f5f5;
+    padding: 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 40px;
+  }
+
+  /* ===== 海报卡片容器 ===== */
+  .poster {
+    width: 900px;
+    min-height: 500px;
+    background: linear-gradient(135deg, #1a5f3f 0%, #2d8a5e 50%, #1a5f3f 100%);
+    border-radius: 24px;
+    padding: 48px;
+    display: flex;
+    gap: 48px;
+    align-items: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    position: relative;
+    overflow: hidden;
+  }
+  .poster::before {
+    content: '';
+    position: absolute;
+    top: -100px;
+    right: -100px;
+    width: 400px;
+    height: 400px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 50%;
+  }
+  .poster::after {
+    content: '';
+    position: absolute;
+    bottom: -150px;
+    left: -100px;
+    width: 500px;
+    height: 500px;
+    background: rgba(255,255,255,0.02);
+    border-radius: 50%;
+  }
+
+  /* ===== 手机外框 ===== */
+  .phone-frame {
+    width: 280px;
+    height: 560px;
+    background: #1a1a1a;
+    border-radius: 36px;
+    padding: 12px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+  }
+  .phone-notch {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80px;
+    height: 24px;
+    background: #1a1a1a;
+    border-radius: 0 0 16px 16px;
+    z-index: 10;
+  }
+  .phone-screen {
+    width: 100%;
+    height: 100%;
+    background: #f5f5f0;
+    border-radius: 28px;
+    overflow: hidden;
+    position: relative;
+  }
+  .phone-home-bar {
+    position: absolute;
+    bottom: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100px;
+    height: 4px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 2px;
+    z-index: 10;
+  }
+
+  /* ===== 海报文字区 ===== */
+  .poster-text {
+    flex: 1;
+    color: white;
+    z-index: 1;
+  }
+  .poster-badge {
+    display: inline-block;
+    background: rgba(255,255,255,0.15);
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    margin-bottom: 16px;
+    backdrop-filter: blur(10px);
+  }
+  .poster-title {
+    font-size: 36px;
+    font-weight: 800;
+    margin-bottom: 16px;
+    line-height: 1.2;
+  }
+  .poster-subtitle {
+    font-size: 18px;
+    color: rgba(255,255,255,0.8);
+    margin-bottom: 32px;
+    line-height: 1.6;
+  }
+  .poster-features {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+  .poster-feature-tag {
+    background: rgba(255,255,255,0.12);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .poster-cta {
+    display: inline-block;
+    background: white;
+    color: #1a5f3f;
+    padding: 14px 36px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  /* ===== 竖版海报（纯手机展示） ===== */
+  .poster-vertical {
+    width: 450px;
+    background: linear-gradient(180deg, #1a5f3f 0%, #0d3d28 100%);
+    border-radius: 24px;
+    padding: 40px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    position: relative;
+    overflow: hidden;
+  }
+  .poster-vertical .phone-frame {
+    margin: 0 auto 32px;
+  }
+  .poster-vertical .poster-title {
+    font-size: 28px;
+  }
+  .poster-vertical .poster-subtitle {
+    font-size: 15px;
+  }
+
+  /* ===== 场景海报（左右手机+中间箭头） ===== */
+  .poster-scene {
+    width: 1000px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 24px;
+    padding: 48px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+    position: relative;
+  }
+  .poster-scene-header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+  .poster-scene-title {
+    font-size: 28px;
+    font-weight: 800;
+    color: #1a5f3f;
+    margin-bottom: 8px;
+  }
+  .poster-scene-desc {
+    font-size: 16px;
+    color: #666;
+  }
+  .scene-flow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+  }
+  .scene-arrow {
+    font-size: 36px;
+    color: #2d8a5e;
+  }
+  .scene-step {
+    text-align: center;
+  }
+  .scene-step-num {
+    display: inline-block;
+    width: 32px;
+    height: 32px;
+    background: #2d8a5e;
+    color: white;
+    border-radius: 50%;
+    line-height: 32px;
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+  .scene-step-text {
+    font-size: 14px;
+    color: #555;
+    font-weight: 500;
+  }
+  .scene-phone-frame {
+    width: 220px;
+    height: 440px;
+    background: #1a1a1a;
+    border-radius: 28px;
+    padding: 10px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+    flex-shrink: 0;
+    position: relative;
+  }
+  .scene-phone-frame .phone-notch {
+    width: 60px;
+    height: 18px;
+    top: 10px;
+  }
+  .scene-phone-frame .phone-screen {
+    border-radius: 22px;
+  }
+
+  /* ===== 手机屏幕 UI 组件 ===== */
+  .app-header {
+    background: #2d8a5e;
+    padding: 48px 20px 20px;
+    color: white;
+  }
+  .app-header-title {
+    font-size: 20px;
+    font-weight: 700;
+  }
+  .app-header-sub {
+    font-size: 12px;
+    opacity: 0.7;
+    margin-top: 4px;
+  }
+
+  .app-home {
+    padding: 24px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  .home-title {
+    font-size: 26px;
+    font-weight: 800;
+    color: #333;
+    margin-bottom: 4px;
+  }
+  .home-sub {
+    font-size: 13px;
+    color: #999;
+    margin-bottom: 36px;
+  }
+  .home-btn-main {
+    background: #2d8a5e;
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 12px;
+    color: white;
+  }
+  .home-btn-main .icon {
+    width: 44px;
+    height: 44px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+  }
+  .home-btn-main .text-title {
+    font-size: 17px;
+    font-weight: 700;
+  }
+  .home-btn-main .text-sub {
+    font-size: 12px;
+    opacity: 0.7;
+    margin-top: 2px;
+  }
+  .home-btn-sec {
+    background: white;
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  }
+  .home-btn-sec .icon {
+    font-size: 20px;
+    color: #333;
+  }
+  .home-btn-sec .text {
+    font-size: 15px;
+    color: #333;
+    font-weight: 500;
+  }
+  .home-count {
+    text-align: center;
+    font-size: 11px;
+    color: #bbb;
+    margin-top: auto;
+    padding-bottom: 12px;
+  }
+
+  .app-scan {
+    background: #000;
+    height: 100%;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .scan-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+  }
+  .scan-window {
+    position: absolute;
+    width: 200px;
+    height: 200px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .scan-corner {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    border-color: #2d8a5e;
+    border-style: solid;
+  }
+  .scan-corner.tl { top: 0; left: 0; border-width: 3px 0 0 3px; }
+  .scan-corner.tr { top: 0; right: 0; border-width: 3px 3px 0 0; }
+  .scan-corner.bl { bottom: 0; left: 0; border-width: 0 0 3px 3px; }
+  .scan-corner.br { bottom: 0; right: 0; border-width: 0 3px 3px 0; }
+  .scan-line {
+    position: absolute;
+    top: 40%;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: #2d8a5e;
+    opacity: 0.7;
+  }
+  .scan-text {
+    position: absolute;
+    top: 68%;
+    color: white;
+    font-size: 14px;
+    text-align: center;
+    width: 100%;
+  }
+  .scan-barcode-demo {
+    position: absolute;
+    top: 42%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 160px;
+    height: 50px;
+    opacity: 0.3;
+  }
+  .scan-barcode-demo div {
+    height: 40px;
+    background: repeating-linear-gradient(90deg, white 0px, white 2px, transparent 2px, transparent 4px);
+    margin-top: 5px;
+  }
+
+  .app-result {
+    padding: 20px;
+    height: 100%;
+    overflow-y: auto;
+  }
+  .result-img {
+    width: 160px;
+    height: 160px;
+    background: #eee;
+    border-radius: 12px;
+    margin: 20px auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 60px;
+  }
+  .result-name {
+    font-size: 20px;
+    font-weight: 700;
+    color: #333;
+    text-align: center;
+  }
+  .result-brand {
+    font-size: 13px;
+    color: #999;
+    text-align: center;
+    margin-top: 4px;
+  }
+  .result-card {
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    margin-top: 16px;
+  }
+  .result-info-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    padding: 6px 0;
+    color: #666;
+  }
+  .result-price-box {
+    background: rgba(45,138,94,0.08);
+    border: 1px solid rgba(45,138,94,0.2);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    margin-top: 20px;
+  }
+  .result-price-label {
+    font-size: 14px;
+    color: #666;
+  }
+  .result-price {
+    font-size: 44px;
+    font-weight: 800;
+    color: #e67e22;
+    margin-top: 4px;
+  }
+  .result-voice {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 36px;
+    height: 36px;
+    background: rgba(45,138,94,0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+  }
+
+  .app-list {
+    height: 100%;
+    overflow-y: auto;
+  }
+  .list-search {
+    background: #2d8a5e;
+    padding: 12px;
+  }
+  .list-search-box {
+    background: white;
+    border-radius: 8px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .list-search-box input {
+    border: none;
+    outline: none;
+    flex: 1;
+    font-size: 14px;
+    color: #333;
+    background: transparent;
+  }
+  .list-search-box input::placeholder {
+    color: #bbb;
+  }
+  .list-card {
+    background: white;
+    margin: 10px 12px;
+    border-radius: 10px;
+    padding: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  }
+  .list-card-header {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .list-card-img {
+    width: 56px;
+    height: 56px;
+    background: #f0f0f0;
+    border-radius: 8px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+  }
+  .list-card-info {
+    flex: 1;
+  }
+  .list-card-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #333;
+  }
+  .list-card-brand {
+    font-size: 12px;
+    color: #999;
+    margin-top: 2px;
+  }
+  .list-card-barcode {
+    font-size: 11px;
+    color: #bbb;
+    margin-top: 2px;
+  }
+  .list-card-price {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 10px;
+    border-top: 1px solid #f0f0f0;
+  }
+  .list-card-sell {
+    font-size: 16px;
+    font-weight: 700;
+    color: #e67e22;
+  }
+  .list-card-purchase {
+    font-size: 12px;
+    color: #bbb;
+  }
+  .list-card-actions {
+    display: flex;
+    gap: 12px;
+  }
+  .list-card-actions span {
+    font-size: 12px;
+    color: #2d8a5e;
+  }
+
+  .app-data {
+    padding: 16px;
+    height: 100%;
+    overflow-y: auto;
+  }
+  .data-stats {
+    background: #2d8a5e;
+    border-radius: 12px;
+    padding: 20px;
+    color: white;
+    margin-bottom: 20px;
+  }
+  .data-stats-label {
+    font-size: 13px;
+    opacity: 0.7;
+  }
+  .data-stats-num {
+    font-size: 40px;
+    font-weight: 800;
+    margin: 4px 0;
+  }
+  .data-section {
+    margin-bottom: 20px;
+  }
+  .data-section-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 4px;
+  }
+  .data-section-desc {
+    font-size: 12px;
+    color: #999;
+    margin-bottom: 10px;
+  }
+  .data-btn {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    border: none;
+    color: white;
+    font-size: 15px;
+    font-weight: 500;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .data-btn-primary { background: #2d8a5e; }
+  .data-btn-accent { background: #e67e22; }
+  .data-btn-danger { background: #e74c3c; }
+
+  /* ===== 横幅海报 ===== */
+  .banner {
+    width: 1200px;
+    height: 400px;
+    background: linear-gradient(135deg, #1a5f3f 0%, #2d8a5e 40%, #1a5f3f 100%);
+    border-radius: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 60px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    position: relative;
+    overflow: hidden;
+  }
+  .banner::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  }
+  .banner-text {
+    text-align: center;
+    color: white;
+    z-index: 1;
+  }
+  .banner-title {
+    font-size: 52px;
+    font-weight: 900;
+    margin-bottom: 12px;
+    text-shadow: 0 2px 20px rgba(0,0,0,0.2);
+  }
+  .banner-sub {
+    font-size: 22px;
+    opacity: 0.85;
+    margin-bottom: 32px;
+  }
+  .banner-tags {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+  }
+  .banner-tag {
+    background: rgba(255,255,255,0.12);
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-size: 15px;
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+  .banner-phones {
+    display: flex;
+    gap: -20px;
+    z-index: 1;
+  }
+  .banner-phone {
+    width: 180px;
+    height: 360px;
+    background: #1a1a1a;
+    border-radius: 24px;
+    padding: 8px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+  }
+  .banner-phone:nth-child(2) {
+    transform: translateY(-20px);
+  }
+  .banner-phone-screen {
+    width: 100%;
+    height: 100%;
+    background: #f5f5f0;
+    border-radius: 18px;
+    overflow: hidden;
+  }
+
+  /* 对比表格海报 */
+  .compare-poster {
+    width: 900px;
+    background: white;
+    border-radius: 24px;
+    padding: 48px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+  }
+  .compare-title {
+    font-size: 28px;
+    font-weight: 800;
+    color: #1a5f3f;
+    text-align: center;
+    margin-bottom: 32px;
+  }
+  .compare-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .compare-table th {
+    background: #2d8a5e;
+    color: white;
+    padding: 14px 16px;
+    text-align: left;
+    font-size: 15px;
+  }
+  .compare-table th:first-child { border-radius: 10px 0 0 0; }
+  .compare-table th:last-child { border-radius: 0 10px 0 0; }
+  .compare-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid #eee;
+    font-size: 14px;
+    color: #555;
+  }
+  .compare-table tr:last-child td:first-child { border-radius: 0 0 0 10px; }
+  .compare-table tr:last-child td:last-child { border-radius: 0 0 10px 0; }
+  .compare-table tr:last-child td { border-bottom: none; background: #f8fdf9; }
+  .compare-table .highlight { background: #f0f9f4; }
+  .compare-table .highlight td { color: #1a5f3f; font-weight: 600; }
+  .badge-green {
+    display: inline-block;
+    background: #d4edda;
+    color: #155724;
+    padding: 2px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .badge-red {
+    display: inline-block;
+    background: #f8d7da;
+    color: #721c24;
+    padding: 2px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  /* 使用场景海报 */
+  .scenario-poster {
+    width: 1000px;
+    background: white;
+    border-radius: 24px;
+    padding: 48px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+  }
+  .scenario-title {
+    font-size: 28px;
+    font-weight: 800;
+    color: #1a5f3f;
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  .scenario-sub {
+    text-align: center;
+    color: #888;
+    font-size: 15px;
+    margin-bottom: 40px;
+  }
+  .scenario-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+  }
+  .scenario-card {
+    text-align: center;
+    padding: 28px 20px;
+    border-radius: 16px;
+    background: #f8f9fa;
+    transition: transform 0.2s;
+  }
+  .scenario-card:hover { transform: translateY(-4px); }
+  .scenario-icon {
+    width: 64px;
+    height: 64px;
+    background: linear-gradient(135deg, #2d8a5e, #1a5f3f);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+    font-size: 28px;
+    color: white;
+  }
+  .scenario-name {
+    font-size: 17px;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 8px;
+  }
+  .scenario-desc {
+    font-size: 13px;
+    color: #888;
+    line-height: 1.6;
+  }
+
+  /* 功能清单海报 */
+  .feature-poster {
+    width: 900px;
+    background: linear-gradient(135deg, #1a5f3f 0%, #2d8a5e 100%);
+    border-radius: 24px;
+    padding: 48px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    color: white;
+  }
+  .feature-poster-title {
+    font-size: 28px;
+    font-weight: 800;
+    text-align: center;
+    margin-bottom: 40px;
+  }
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+  .feature-item {
+    background: rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .feature-icon {
+    width: 44px;
+    height: 44px;
+    background: rgba(255,255,255,0.12);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  .feature-text-title {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .feature-text-desc {
+    font-size: 13px;
+    opacity: 0.7;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+<!-- ========== 海报1：主海报（首页+核心卖点） ========== -->
+<div class="poster">
+  <div class="phone-frame">
+    <div class="phone-notch"></div>
+    <div class="phone-screen">
+      <div class="app-home">
+        <div style="margin-top: 16px;">
+          <div class="home-title">小店扫码查价</div>
+          <div class="home-sub">离线可用 · 数据安全 · 零广告</div>
+        </div>
+        <div class="home-btn-main">
+          <div class="icon">📷</div>
+          <div>
+            <div class="text-title">录入新商品</div>
+            <div class="text-sub">扫码自动获取商品信息</div>
+          </div>
+        </div>
+        <div class="home-btn-main" style="background: #e67e22;">
+          <div class="icon">💰</div>
+          <div>
+            <div class="text-title">快速扫码查价</div>
+            <div class="text-sub">离线秒查本店售价</div>
+          </div>
+        </div>
+        <div class="home-btn-sec">
+          <div class="icon">📦</div>
+          <div class="text">商品管理列表</div>
+        </div>
+        <div class="home-btn-sec">
+          <div class="icon">🔄</div>
+          <div class="text">数据导入/导出</div>
+        </div>
+        <div class="home-count">已录入 1,286 件商品 · 数据仅存储在本地</div>
+      </div>
+      <div class="phone-home-bar"></div>
+    </div>
+  </div>
+  <div class="poster-text">
+    <div class="poster-badge">专为小卖部 · 便利店 · 杂货店设计</div>
+    <div class="poster-title">不用记价签<br>一扫就知道</div>
+    <div class="poster-subtitle">离线扫码查价工具，无需网络、无需注册、零广告。扫描商品条码，秒出本店售价，语音自动播报。</div>
+    <div class="poster-features">
+      <div class="poster-feature-tag">📴 完全离线</div>
+      <div class="poster-feature-tag">🗣️ 语音播报</div>
+      <div class="poster-feature-tag">🔒 数据安全</div>
+      <div class="poster-feature-tag">📤 数据共享</div>
+      <div class="poster-feature-tag">🖼️ 商品图片</div>
+      <div class="poster-feature-tag">⚡ 连续扫描</div>
+    </div>
+    <div class="poster-cta">立即下载使用</div>
+  </div>
+</div>
+
+<!-- ========== 海报2：扫码查价场景 ========== -->
+<div class="poster-scene">
+  <div class="poster-scene-header">
+    <div class="poster-scene-title">顾客问价？一扫便知</div>
+    <div class="poster-scene-desc">对准商品条码，秒出售价，语音播报，忙时不用看屏幕</div>
+  </div>
+  <div class="scene-flow">
+    <div class="scene-step">
+      <div class="scene-step-num">1</div>
+      <div class="scene-step-text">打开扫码查价</div>
+    </div>
+    <div class="scene-arrow">→</div>
+    <div class="scene-phone-frame">
+      <div class="phone-notch" style="width:50px;height:14px;top:8px;"></div>
+      <div class="phone-screen">
+        <div class="app-scan">
+          <div class="scan-overlay"></div>
+          <div class="scan-window">
+            <div class="scan-corner tl"></div>
+            <div class="scan-corner tr"></div>
+            <div class="scan-corner bl"></div>
+            <div class="scan-corner br"></div>
+            <div class="scan-line"></div>
+            <div class="scan-barcode-demo"><div></div></div>
+          </div>
+          <div class="scan-text">对准条码自动扫描<br>支持 EAN-13 / UPC / CODE-128</div>
+        </div>
+      </div>
+    </div>
+    <div class="scene-arrow">→</div>
+    <div class="scene-step">
+      <div class="scene-step-num">2</div>
+      <div class="scene-step-text">自动识别条码</div>
+    </div>
+    <div class="scene-arrow">→</div>
+    <div class="scene-phone-frame">
+      <div class="phone-notch" style="width:50px;height:14px;top:8px;"></div>
+      <div class="phone-screen">
+        <div class="app-result" style="position:relative;">
+          <div class="result-voice">🔊</div>
+          <div style="text-align:center;margin-top:8px;">
+            <div class="result-img" style="width:120px;height:120px;font-size:48px;">🥤</div>
+            <div class="result-name">可口可乐 330ml</div>
+            <div class="result-brand">可口可乐 | 330ml</div>
+          </div>
+          <div class="result-card">
+            <div class="result-info-row"><span>条码</span><span style="color:#333;">6901234567890</span></div>
+            <div class="result-info-row"><span>进货价</span><span style="color:#333;">¥2.50</span></div>
+          </div>
+          <div class="result-price-box">
+            <div class="result-price-label">本店售价</div>
+            <div class="result-price">¥3.50</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="scene-arrow">→</div>
+    <div class="scene-step">
+      <div class="scene-step-num">3</div>
+      <div class="scene-step-text">语音播报价格</div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 海报3：商品管理场景 ========== -->
+<div class="poster-scene">
+  <div class="poster-scene-header">
+    <div class="poster-scene-title">千种商品，一搜就到</div>
+    <div class="poster-scene-desc">完整的商品管理系统，录入、编辑、搜索、图片，一应俱全</div>
+  </div>
+  <div class="scene-flow">
+    <div class="scene-phone-frame">
+      <div class="phone-notch" style="width:50px;height:14px;top:8px;"></div>
+      <div class="phone-screen">
+        <div class="app-list">
+          <div class="list-search">
+            <div class="list-search-box">
+              <span style="color:#bbb;">🔍</span>
+              <input placeholder="搜索商品名称或条码" readonly>
+            </div>
+          </div>
+          <div class="list-card">
+            <div class="list-card-header">
+              <div class="list-card-img">🥤</div>
+              <div class="list-card-info">
+                <div class="list-card-name">可口可乐 330ml</div>
+                <div class="list-card-brand">可口可乐 | 330ml</div>
+                <div class="list-card-barcode">条码: 6901234567890</div>
+              </div>
+            </div>
+            <div class="list-card-price">
+              <div>
+                <span class="list-card-sell">¥3.50</span>
+                <span class="list-card-purchase" style="margin-left:8px;">进价 ¥2.50</span>
+              </div>
+              <div class="list-card-actions">
+                <span>✏️ 编辑</span>
+                <span style="color:#e74c3c;">🗑️ 删除</span>
+              </div>
+            </div>
+          </div>
+          <div class="list-card">
+            <div class="list-card-header">
+              <div class="list-card-img">🍜</div>
+              <div class="list-card-info">
+                <div class="list-card-name">康师傅红烧牛肉面</div>
+                <div class="list-card-brand">康师傅 | 105g</div>
+                <div class="list-card-barcode">条码: 6912345678901</div>
+              </div>
+            </div>
+            <div class="list-card-price">
+              <div>
+                <span class="list-card-sell">¥4.50</span>
+                <span class="list-card-purchase" style="margin-left:8px;">进价 ¥3.20</span>
+              </div>
+              <div class="list-card-actions">
+                <span>✏️ 编辑</span>
+                <span style="color:#e74c3c;">🗑️ 删除</span>
+              </div>
+            </div>
+          </div>
+          <div class="list-card">
+            <div class="list-card-header">
+              <div class="list-card-img">🍪</div>
+              <div class="list-card-info">
+                <div class="list-card-name">奥利奥夹心饼干</div>
+                <div class="list-card-brand">亿滋 | 116g</div>
+                <div class="list-card-barcode">条码: 6923456789012</div>
+              </div>
+            </div>
+            <div class="list-card-price">
+              <div>
+                <span class="list-card-sell">¥6.00</span>
+                <span class="list-card-purchase" style="margin-left:8px;">进价 ¥4.50</span>
+              </div>
+              <div class="list-card-actions">
+                <span>✏️ 编辑</span>
+                <span style="color:#e74c3c;">🗑️ 删除</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="text-align:center;max-width:200px;">
+      <div style="font-size:18px;font-weight:700;color:#333;margin-bottom:8px;">商品管理列表</div>
+      <div style="font-size:13px;color:#888;line-height:1.6;">卡片式展示，一目了然<br>搜索防抖，千条商品秒查<br>分页加载，流畅不卡顿</div>
+    </div>
+    <div class="scene-phone-frame">
+      <div class="phone-notch" style="width:50px;height:14px;top:8px;"></div>
+      <div class="phone-screen">
+        <div class="app-data">
+          <div class="data-stats">
+            <div class="data-stats-label">当前商品数量</div>
+            <div class="data-stats-num">1,286</div>
+            <div style="font-size:13px;opacity:0.7;">条</div>
+          </div>
+          <div class="data-section">
+            <div class="data-section-title">数据导出</div>
+            <div class="data-section-desc">导出文件可分享给其他手机导入</div>
+            <button class="data-btn data-btn-primary">📥 导出为 JSON (推荐)</button>
+            <button class="data-btn data-btn-primary">📊 导出为 CSV</button>
+          </div>
+          <div class="data-section">
+            <div class="data-section-title">数据导入</div>
+            <div class="data-section-desc">从 JSON 或 CSV 文件导入</div>
+            <button class="data-btn data-btn-accent">📤 导入数据</button>
+          </div>
+          <div class="data-section">
+            <div class="data-section-title">危险操作</div>
+            <button class="data-btn data-btn-danger">🗑️ 清空全部数据</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="text-align:center;max-width:200px;">
+      <div style="font-size:18px;font-weight:700;color:#333;margin-bottom:8px;">数据导入/导出</div>
+      <div style="font-size:13px;color:#888;line-height:1.6;">微信分享同步价格<br>JSON/CSV 双格式<br>三种冲突处理策略</div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 海报4：对比表格 ========== -->
+<div class="compare-poster">
+  <div class="compare-title">为什么选择「小店扫码查价」？</div>
+  <table class="compare-table">
+    <tr>
+      <th>对比项</th>
+      <th>本 App</th>
+      <th>收银机系统</th>
+      <th>Excel 表格</th>
+    </tr>
+    <tr>
+      <td>成本</td>
+      <td><span class="badge-green">一次性购买</span></td>
+      <td><span class="badge-red">硬件+年费上千</span></td>
+      <td>免费但难用</td>
+    </tr>
+    <tr>
+      <td>离线使用</td>
+      <td><span class="badge-green">✅ 完全离线</span></td>
+      <td><span class="badge-red">❌ 需联网</span></td>
+      <td>✅ 离线</td>
+    </tr>
+    <tr>
+      <td>扫码速度</td>
+      <td><span class="badge-green">⚡ 秒扫秒出</span></td>
+      <td>⚡ 秒扫秒出</td>
+      <td><span class="badge-red">❌ 无扫码</span></td>
+    </tr>
+    <tr>
+      <td>语音播报</td>
+      <td><span class="badge-green">✅ 有</span></td>
+      <td><span class="badge-red">❌ 一般没有</span></td>
+      <td><span class="badge-red">❌ 无</span></td>
+    </tr>
+    <tr>
+      <td>数据共享</td>
+      <td><span class="badge-green">✅ 文件导入导出</span></td>
+      <td>✅ 云端同步（收费）</td>
+      <td><span class="badge-red">❌ 难共享</span></td>
+    </tr>
+    <tr>
+      <td>需要额外硬件</td>
+      <td><span class="badge-green">🚫 仅需手机</span></td>
+      <td><span class="badge-red">✅ 收银机+扫码枪</span></td>
+      <td>🚫 仅需手机</td>
+    </tr>
+    <tr class="highlight">
+      <td>上手难度</td>
+      <td>🟢 极简，3分钟学会</td>
+      <td>🔴 复杂培训</td>
+      <td>🟡 需制表</td>
+    </tr>
+  </table>
+</div>
+
+<!-- ========== 海报5：用户场景 ========== -->
+<div class="scenario-poster">
+  <div class="scenario-title">适合谁用？</div>
+  <div class="scenario-sub">这些场景，一个 App 全搞定</div>
+  <div class="scenario-grid">
+    <div class="scenario-card">
+      <div class="scenario-icon">🏪</div>
+      <div class="scenario-name">小卖部店主</div>
+      <div class="scenario-desc">顾客问「这瓶水多少钱」不用翻本子、不用记价签，一扫便知</div>
+    </div>
+    <div class="scenario-card">
+      <div class="scenario-icon">👫</div>
+      <div class="scenario-name">夫妻店两人</div>
+      <div class="scenario-desc">老婆管进货老公看店，导出数据发给对方，价格永远同步</div>
+    </div>
+    <div class="scenario-card">
+      <div class="scenario-icon">👷</div>
+      <div class="scenario-name">便利店老板</div>
+      <div class="scenario-desc">请兼职店员也不怕，导入价格表到店员手机，卖不错价</div>
+    </div>
+    <div class="scenario-card">
+      <div class="scenario-icon">👴</div>
+      <div class="scenario-name">杂货店老人</div>
+      <div class="scenario-desc">记性不好商品太多？语音播报不用看屏幕，也知道价格</div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 海报6：功能清单 ========== -->
+<div class="feature-poster">
+  <div class="feature-poster-title">十大核心功能</div>
+  <div class="feature-grid">
+    <div class="feature-item">
+      <div class="feature-icon">📴</div>
+      <div>
+        <div class="feature-text-title">完全离线可用</div>
+        <div class="feature-text-desc">不依赖网络，没有WiFi也能扫码查价，山区地下室照常使用</div>
+      </div>
+    </div>
+    <div class="feature-item">
+      <div class="feature-icon">🗣️</div>
+      <div>
+        <div class="feature-text-title">语音播报价格</div>
+        <div class="feature-text-desc">扫码后自动语音报出「可口可乐，售价3.5元」，忙时不用看屏幕</div>
+      </div>
+    </div>
+    <div class="feature-item">
+      <div class="feature-icon">⚡</div>
+      <div>
+        <div class="feature-text-title">连续扫描模式</div>
+        <div class="feature-text-desc">开启后自动连续扫码，适合盘点、结账高峰期批量操作</div>
+      </div>
+    </div>
+    <div class="feature-item">
+      <div class="feature-icon">📤</div>
+      <div>
+        <div class="feature-text-title">数据互传共享</div>
+        <div class="feature-text-desc">导出JSON/CSV文件，微信发给店员手机导入，多人共用价格表</div>
+      </div>
+    </div>
+    <div class="feature-item">
+      <div class="feature-icon">🖼️</div>
+      <div>
+        <div class="feature-text-title">商品图片管理</div>
+        <div class="feature-text-desc">拍照录入商品图，查价时一目了然，再也不怕记混</div>
+      </div>
+    </div>
+    <div class="feature-item">
+      <div class="feature-icon">🔍</div>
+      <div>
+        <div class="feature-text-title">智能搜索</div>
+        <div class="feature-text-desc">支持商品名称或条码搜索，千种商品秒找到</div>
+      </div>
+    </div>
+    <div class="feature-item">
+      <div class="feature-icon">💰</div>
+      <div>
+        <div class="feature-text-title">进货价私密</div>
+        <div class="feature-text-desc">售价给顾客看，进价仅店主可见，账目清晰又保密</div>
+      </div>
+    </div>
+    <div class="feature-item">
+      <div class="feature-icon">📊</div>
+      <div>
+        <div class="feature-text-title">扫码历史记录</div>
+        <div class="feature-text-desc">自动记录最近查询，热门商品一点即查</div>
+      </div>
+    </div>
+    <div class="feature-item">
+      <div class="feature-icon">🔒</div>
+      <div>
+        <div class="feature-text-title">数据隐私安全</div>
+        <div class="feature-text-desc">所有数据存在手机本地，不上传任何云端，不怕泄露</div>
+      </div>
+    </div>
+    <div class="feature-item">
+      <div class="feature-icon">🚫</div>
+      <div>
+        <div class="feature-text-title">零广告零打扰</div>
+        <div class="feature-text-desc">没有弹窗广告，没有会员套路，纯净使用体验</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 海报7：横幅海报 ========== -->
+<div class="banner">
+  <div class="banner-text">
+    <div class="banner-title">小店扫码查价</div>
+    <div class="banner-sub">专为小卖部、便利店、杂货店打造的离线扫码查价工具</div>
+    <div class="banner-tags">
+      <div class="banner-tag">📴 离线可用</div>
+      <div class="banner-tag">🗣️ 语音播报</div>
+      <div class="banner-tag">🔒 数据安全</div>
+      <div class="banner-tag">🚫 零广告</div>
+    </div>
+  </div>
+  <div class="banner-phones">
+    <div class="banner-phone">
+      <div class="banner-phone-screen">
+        <div style="padding:20px;height:100%;">
+          <div style="font-size:16px;font-weight:700;color:#333;margin-top:20px;margin-bottom:16px;text-align:center;">小店扫码查价</div>
+          <div style="background:#2d8a5e;border-radius:8px;padding:12px;margin-bottom:8px;color:white;">
+            <div style="font-size:13px;font-weight:700;">📷 录入新商品</div>
+          </div>
+          <div style="background:#e67e22;border-radius:8px;padding:12px;margin-bottom:8px;color:white;">
+            <div style="font-size:13px;font-weight:700;">💰 快速扫码查价</div>
+          </div>
+          <div style="background:white;border-radius:8px;padding:10px;margin-bottom:6px;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div style="font-size:12px;color:#333;">📦 商品管理列表</div>
+          </div>
+          <div style="background:white;border-radius:8px;padding:10px;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div style="font-size:12px;color:#333;">🔄 数据导入/导出</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="banner-phone">
+      <div class="banner-phone-screen">
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:20px;">
+          <div style="font-size:64px;margin-bottom:12px;">🥤</div>
+          <div style="font-size:14px;font-weight:700;color:#333;margin-bottom:4px;">可口可乐 330ml</div>
+          <div style="font-size:11px;color:#999;margin-bottom:16px;">可口可乐 | 330ml</div>
+          <div style="background:rgba(45,138,94,0.08);border:1px solid rgba(45,138,94,0.15);border-radius:10px;padding:16px 32px;text-align:center;">
+            <div style="font-size:12px;color:#666;">本店售价</div>
+            <div style="font-size:36px;font-weight:800;color:#e67e22;">¥3.50</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="banner-phone">
+      <div class="banner-phone-screen">
+        <div style="padding:12px;height:100%;">
+          <div style="background:#2d8a5e;border-radius:8px;padding:12px;color:white;margin-bottom:10px;">
+            <div style="font-size:11px;opacity:0.7;">当前商品数量</div>
+            <div style="font-size:32px;font-weight:800;">1,286</div>
+            <div style="font-size:11px;opacity:0.7;">条</div>
+          </div>
+          <div style="font-size:11px;font-weight:600;color:#333;margin-bottom:6px;">数据导出</div>
+          <div style="background:#2d8a5e;border-radius:6px;padding:8px;color:white;font-size:11px;text-align:center;margin-bottom:6px;">📥 导出 JSON</div>
+          <div style="background:#e67e22;border-radius:6px;padding:8px;color:white;font-size:11px;text-align:center;">📤 导入数据</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 海报8：使用流程（竖版） ========== -->
+<div class="poster-scene" style="width:900px;">
+  <div class="poster-scene-header">
+    <div class="poster-scene-title">三步上手，3分钟学会</div>
+    <div class="poster-scene-desc">无需培训，打开即用</div>
+  </div>
+  <div style="display:flex;justify-content:center;gap:40px;">
+    <div style="text-align:center;">
+      <div style="width:64px;height:64px;background:linear-gradient(135deg,#2d8a5e,#1a5f3f);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;color:white;font-size:24px;font-weight:800;">1</div>
+      <div style="font-size:17px;font-weight:700;color:#333;margin-bottom:8px;">录入商品</div>
+      <div style="font-size:13px;color:#888;line-height:1.6;max-width:180px;">扫描条码 → 填写名称和售价 → 拍照 → 保存</div>
+    </div>
+    <div style="display:flex;align-items:center;font-size:32px;color:#ddd;">→</div>
+    <div style="text-align:center;">
+      <div style="width:64px;height:64px;background:linear-gradient(135deg,#2d8a5e,#1a5f3f);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;color:white;font-size:24px;font-weight:800;">2</div>
+      <div style="font-size:17px;font-weight:700;color:#333;margin-bottom:8px;">扫码查价</div>
+      <div style="font-size:13px;color:#888;line-height:1.6;max-width:180px;">对准条码一扫 → 超大字体显示售价 → 语音播报</div>
+    </div>
+    <div style="display:flex;align-items:center;font-size:32px;color:#ddd;">→</div>
+    <div style="text-align:center;">
+      <div style="width:64px;height:64px;background:linear-gradient(135deg,#2d8a5e,#1a5f3f);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;color:white;font-size:24px;font-weight:800;">3</div>
+      <div style="font-size:17px;font-weight:700;color:#333;margin-bottom:8px;">分享同步</div>
+      <div style="font-size:13px;color:#888;line-height:1.6;max-width:180px;">导出JSON → 微信发送 → 店员手机导入</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
