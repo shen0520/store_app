@@ -36,12 +36,14 @@ class ImportService {
       List<Goods> goodsList;
       int copiedImages = 0;
       int failedImages = 0;
+      bool imagesDirFound = true;
 
       if (ext == 'zip') {
         final zipResult = await _importFromZip(filePath);
         goodsList = zipResult['goodsList'] as List<Goods>;
         copiedImages = zipResult['copiedImages'] as int;
         failedImages = zipResult['failedImages'] as int;
+        imagesDirFound = (zipResult['imagesDirFound'] as bool?) ?? true;
       } else if (ext == 'json') {
         goodsList = await _parseJsonFile(filePath);
       } else if (ext == 'csv') {
@@ -80,6 +82,10 @@ class ImportService {
       message.writeln('跳过: ${importResult['skipped']} 条');
       if (copiedImages > 0 || failedImages > 0) {
         message.writeln('图片导入: 成功 $copiedImages 张, 失败 $failedImages 张');
+      }
+      if (ext == 'zip' && !imagesDirFound) {
+        message.writeln('\n⚠️ 未在 zip 包中找到 images/ 目录，商品图片未导入');
+        message.writeln('请确保 zip 包中包含 images/ 文件夹');
       }
       if (invalidList.isNotEmpty) {
         message.writeln('\n${invalidList.length} 条数据校验失败（已跳过）:');
@@ -123,11 +129,28 @@ class ImportService {
       }
 
       // 处理图片：复制 images/ 目录下的图片到本机应用目录
-      final imagesDir = Directory('${tempDir.path}/images');
+      // 先尝试根目录的 images，找不到则递归搜索（兼容 zip 包有多层目录的情况）
+      Directory? imagesDir;
+      final rootImagesDir = Directory('${tempDir.path}/images');
+      if (await rootImagesDir.exists()) {
+        imagesDir = rootImagesDir;
+      } else {
+        final allDirs = tempDir
+            .listSync(recursive: true)
+            .whereType<Directory>();
+        for (final dir in allDirs) {
+          final dirName = dir.path.split('/').last.toLowerCase();
+          if (dirName == 'images') {
+            imagesDir = dir;
+            break;
+          }
+        }
+      }
+
       int copiedImages = 0;
       int failedImages = 0;
 
-      if (await imagesDir.exists()) {
+      if (imagesDir != null && await imagesDir.exists()) {
         final appDir = await getApplicationDocumentsDirectory();
         final targetDir = Directory('${appDir.path}/goods_images');
         if (!await targetDir.exists()) {
@@ -138,8 +161,10 @@ class ImportService {
           final imgPath = goods.goodsImg;
           if (imgPath == null || imgPath.isEmpty) continue;
 
-          // 只处理相对路径（zip 导出的格式）
-          if (imgPath.startsWith('images/')) {
+          // 处理相对路径（支持 images/、Images/、./images/ 等格式）
+          final lowerPath = imgPath.toLowerCase();
+          if (lowerPath.startsWith('images/') ||
+              lowerPath.startsWith('./images/')) {
             final fileName = imgPath.split('/').last;
             final srcFile = File('${imagesDir.path}/$fileName');
             if (await srcFile.exists()) {
@@ -150,11 +175,40 @@ class ImportService {
               goodsList[goodsList.indexOf(goods)] = goods.copyWith(goodsImg: finalDest.path);
               copiedImages++;
             } else {
-              goodsList[goodsList.indexOf(goods)] = goods.copyWith(goodsImg: null);
-              failedImages++;
+              // 尝试不区分大小写查找图片文件
+              final lowerFileName = fileName.toLowerCase();
+              final matchingFiles = imagesDir
+                  .listSync()
+                  .whereType<File>()
+                  .where((f) => f.path.split('/').last.toLowerCase() == lowerFileName)
+                  .toList();
+              if (matchingFiles.isNotEmpty) {
+                final destFile = File('${targetDir.path}/$fileName');
+                final finalDest = await _ensureUniqueName(destFile);
+                await matchingFiles.first.copy(finalDest.path);
+                goodsList[goodsList.indexOf(goods)] = goods.copyWith(goodsImg: finalDest.path);
+                copiedImages++;
+              } else {
+                goodsList[goodsList.indexOf(goods)] = goods.copyWith(goodsImg: null);
+                failedImages++;
+              }
             }
           }
           // http 开头的 URL 保持不变
+        }
+      }
+
+      // 兜底：如果 zip 中没有找到 images 目录，清空残留的相对路径
+      // 避免显示组件把 images/xxx.jpg 误当成网络 URL 加载
+      if (imagesDir == null || !await imagesDir.exists()) {
+        for (int i = 0; i < goodsList.length; i++) {
+          final imgPath = goodsList[i].goodsImg;
+          if (imgPath != null &&
+              (imgPath.toLowerCase().startsWith('images/') ||
+                  imgPath.toLowerCase().startsWith('./images/'))) {
+            goodsList[i] = goodsList[i].copyWith(goodsImg: null);
+            failedImages++;
+          }
         }
       }
 
@@ -162,6 +216,7 @@ class ImportService {
         'goodsList': goodsList,
         'copiedImages': copiedImages,
         'failedImages': failedImages,
+        'imagesDirFound': imagesDir != null ? await imagesDir.exists() : false,
       };
     } finally {
       // 清理临时目录
@@ -258,13 +313,13 @@ class ImportService {
   /// 标准化字段名（兼容不同来源的数据）
   void _normalizeFieldNames(Map<String, dynamic> map) {
     final fieldMappings = {
-      'goods_name': ['name', 'productName', 'title', '商品名称'],
+      'goods_name': ['name', 'productName', 'title', '商品名称', 'goodsName'],
       'barcode': ['code', 'ean', 'sku', '条码'],
       'brand': ['trademark', 'manufacturer', '品牌'],
-      'spec': ['specification', 'standard', '规格'],
-      'goods_img': ['img', 'image', 'pic', 'imageUrl', 'photo', '商品图片'],
+      'spec': ['specification', 'standard', '规格', 'goodsSpec'],
+      'goods_img': ['img', 'image', 'pic', 'imageUrl', 'photo', '商品图片', 'goodsImg'],
       'purchase_price': ['cost', 'buyPrice', '进货价'],
-      'sell_price': ['price', 'salePrice', '售价'],
+      'sell_price': ['price', 'salePrice', '售价', 'goodsPrice'],
       'remark': ['notes', 'comment', '备注'],
     };
 
@@ -290,7 +345,7 @@ class ImportService {
   }
 
   /// 处理导入数据中的图片路径：
-  /// - 以 images/ 开头的相对路径 → 保留，由 zip 导入逻辑处理
+  /// - 以 images/、./images/ 开头的相对路径 → 保留，由 zip 导入逻辑处理
   /// - / 开头的本地绝对路径 → 清空（从别的手机导入的路径在此无效）
   /// - http 开头的 URL → 保持不变
   void _processImportedImagePath(Map<String, dynamic> map) {
@@ -303,7 +358,7 @@ class ImportService {
       // 本地绝对路径，在此手机无效
       map['goods_img'] = null;
     }
-    // images/ 开头的相对路径：由 zip 导入逻辑处理
+    // images/、./images/ 开头的相对路径：由 zip 导入逻辑处理
     // http 开头的 URL：保持不变
   }
 

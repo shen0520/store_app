@@ -274,9 +274,12 @@ class DBHelper {
           whereArgs: [goods.barcode],
         );
 
+        // 导入时不应携带外部数据库的自增 id，避免主键冲突
+        final data = goods.toMap()..remove('id');
+
         if (existing.isEmpty) {
-          // 条码不存在，直接插入
-          await txn.insert('goods', goods.toMap());
+          // 条码不存在，直接插入（让 SQLite 自动生成新 id）
+          await txn.insert('goods', data);
           inserted++;
         } else {
           // 条码已存在，根据策略处理
@@ -289,7 +292,7 @@ class DBHelper {
             case 'overwrite':
               await txn.update(
                 'goods',
-                goods.toMap(),
+                data,
                 where: 'id = ?',
                 whereArgs: [existingId],
               );
@@ -303,7 +306,7 @@ class DBHelper {
               if (goods.updateTime.isAfter(existingUpdateTime)) {
                 await txn.update(
                   'goods',
-                  goods.toMap(),
+                  data,
                   where: 'id = ?',
                   whereArgs: [existingId],
                 );
